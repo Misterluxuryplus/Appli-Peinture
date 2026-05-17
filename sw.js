@@ -1,19 +1,18 @@
-const CACHE_NAME = "willpaint-v1";
-const FILES = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./manifest.json",
-  "./icons/willpaint-icon.svg"
-];
+const CACHE_NAME = "willpaint-disabled-v1.3-steps";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES)));
+  self.skipWaiting();
+  event.waitUntil(caches.delete(CACHE_NAME));
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => response || fetch(event.request))
-  );
+  event.respondWith(fetch(event.request));
 });
