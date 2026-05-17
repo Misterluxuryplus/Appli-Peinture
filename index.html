@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#163c43">
+    <title>Will'Paint - Devis peinture</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-lockup">
+        <div class="brand-mark" id="headerLogo">WP</div>
+        <div>
+          <p class="eyebrow">Application locale de devis</p>
+          <h1>Will'Paint</h1>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="Navigation principale">
+        <button class="nav-button active" type="button" data-view="quoteView">Devis</button>
+        <button class="nav-button" type="button" data-view="historyView">Historique</button>
+        <button class="nav-button" type="button" data-view="settingsView">Paramètres entreprise</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="quoteView" class="view active-view">
+        <div class="workspace">
+          <section class="panel form-panel" aria-label="Création du devis">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow dark">Création devis</p>
+                <h2>Nouveau devis client</h2>
+              </div>
+              <button class="secondary" id="newQuoteBtn" type="button">Nouveau devis</button>
+            </div>
+
+            <form id="quoteForm">
+              <section class="form-section">
+                <div class="section-title">
+                  <span>1</span>
+                  <h3>Client</h3>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Nom client
+                    <input id="clientName" name="clientName" autocomplete="name" required>
+                  </label>
+                  <label>
+                    Téléphone client
+                    <input id="clientPhone" name="clientPhone" autocomplete="tel">
+                  </label>
+                  <label>
+                    Email client
+                    <input id="clientEmail" name="clientEmail" type="email" autocomplete="email">
+                  </label>
+                  <label>
+                    Date du devis
+                    <input id="quoteDate" name="quoteDate" type="date" required>
+                  </label>
+                  <label>
+                    Numéro de devis
+                    <input id="quoteNumber" name="quoteNumber" readonly>
+                  </label>
+                  <label class="wide">
+                    Adresse client
+                    <textarea id="clientAddress" name="clientAddress" rows="2" autocomplete="street-address"></textarea>
+                  </label>
+                </div>
+              </section>
+
+              <section class="form-section">
+                <div class="section-title">
+                  <span>2</span>
+                  <h3>Chantier</h3>
+                </div>
+                <div class="form-grid">
+                  <label class="wide">
+                    Adresse chantier
+                    <textarea id="siteAddress" name="siteAddress" rows="2"></textarea>
+                  </label>
+                  <label>
+                    Type de pièce
+                    <input id="roomType" name="roomType" placeholder="Salon, cuisine, façade...">
+                  </label>
+                  <label>
+                    Surface murs en m²
+                    <input id="wallSurface" name="wallSurface" type="number" min="0" step="0.01" value="0">
+                  </label>
+                  <label>
+                    Surface plafond en m²
+                    <input id="ceilingSurface" name="ceilingSurface" type="number" min="0" step="0.01" value="0">
+                  </label>
+                  <label>
+                    Nombre de couches
+                    <input id="coatCount" name="coatCount" type="number" min="1" step="1" value="2">
+                  </label>
+                  <label>
+                    État du support
+                    <select id="supportState" name="supportState">
+                      <option>Bon</option>
+                      <option>Moyen</option>
+                      <option>Mauvais</option>
+                    </select>
+                  </label>
+                  <label>
+                    Préparation nécessaire
+                    <select id="prepNeeded" name="prepNeeded">
+                      <option>Oui</option>
+                      <option>Non</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="form-section">
+                <div class="section-title">
+                  <span>3</span>
+                  <h3>Prestations</h3>
+                </div>
+                <datalist id="serviceSuggestions">
+                  <option value="Peinture murs"></option>
+                  <option value="Peinture plafond"></option>
+                  <option value="Sous-couche"></option>
+                  <option value="Préparation support"></option>
+                  <option value="Rebouchage"></option>
+                  <option value="Ponçage"></option>
+                  <option value="Protection chantier"></option>
+                  <option value="Nettoyage fin de chantier"></option>
+                  <option value="Déplacement"></option>
+                  <option value="Main-d'œuvre"></option>
+                </datalist>
+                <div class="table-wrap">
+                  <table class="line-table" aria-label="Tableau de prestations">
+                    <thead>
+                      <tr>
+                        <th>Désignation</th>
+                        <th>Qté</th>
+                        <th>Unité</th>
+                        <th>Prix HT</th>
+                        <th>Total HT</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="linesBody"></tbody>
+                  </table>
+                </div>
+                <div class="line-actions">
+                  <button id="addLineBtn" class="secondary" type="button">Ajouter ligne</button>
+                  <button id="addTextBtn" class="secondary" type="button">Ajouter texte libre</button>
+                  <button id="calculateBtn" class="primary" type="button">Calculer</button>
+                </div>
+              </section>
+
+              <section class="form-section">
+                <div class="section-title">
+                  <span>4</span>
+                  <h3>Photos chantier</h3>
+                </div>
+                <div class="photo-uploader">
+                  <label class="upload-button">
+                    Ajouter une photo
+                    <input id="photoInput" type="file" accept="image/*" multiple>
+                  </label>
+                  <p>Les photos sont intégrées à l'aperçu du devis et sauvegardées avec le devis courant.</p>
+                </div>
+                <div id="photoGrid" class="photo-grid" aria-live="polite"></div>
+              </section>
+
+              <section class="form-section">
+                <div class="section-title">
+                  <span>5</span>
+                  <h3>Totaux et conditions</h3>
+                </div>
+                <div class="totals-editor">
+                  <label>
+                    TVA
+                    <select id="vatRate" name="vatRate">
+                      <option value="0.212" selected>21,20 %</option>
+                      <option value="0.20">20 %</option>
+                      <option value="0.10">10 %</option>
+                      <option value="0">0 %</option>
+                    </select>
+                  </label>
+                  <div class="total-box">
+                    <span>Total HT</span>
+                    <strong id="totalHt">0,00 €</strong>
+                  </div>
+                  <div class="total-box">
+                    <span>TVA</span>
+                    <strong id="totalVat">0,00 €</strong>
+                  </div>
+                  <div class="total-box grand-total">
+                    <span>Total TTC</span>
+                    <strong id="totalTtc">0,00 €</strong>
+                  </div>
+                </div>
+                <label class="wide">
+                  Conditions
+                  <textarea id="conditions" name="conditions" rows="4">Devis valable 30 jours. Acompte de 30 % à la commande. Solde à la réception des travaux.</textarea>
+                </label>
+              </section>
+            </form>
+          </section>
+
+          <aside class="panel preview-panel" aria-label="Aperçu du devis">
+            <div class="preview-toolbar">
+              <button id="saveQuoteBtn" class="primary" type="button">Sauvegarder devis</button>
+              <button id="pdfBtn" class="primary" type="button">Générer devis PDF</button>
+              <button id="mailBtn" class="secondary" type="button">Envoyer au client</button>
+              <button id="libreOfficeBtn" class="secondary" type="button">LibreOffice</button>
+              <button id="jsonBtn" class="secondary" type="button">JSON</button>
+              <button id="csvBtn" class="secondary" type="button">CSV</button>
+            </div>
+            <article id="quotePreview" class="quote-document"></article>
+          </aside>
+        </div>
+      </section>
+
+      <section id="historyView" class="view">
+        <div class="single-column">
+          <section class="panel page-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow dark">Sauvegarde locale</p>
+                <h2>Historique des devis</h2>
+              </div>
+              <button id="clearCurrentBtn" class="secondary" type="button">Vider le devis courant</button>
+            </div>
+            <div id="historyList" class="history-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="settingsView" class="view">
+        <div class="single-column">
+          <section class="panel page-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow dark">Paramètres</p>
+                <h2>Informations entreprise</h2>
+              </div>
+              <button id="resetCompanyBtn" class="secondary" type="button">Réinitialiser Will'Paint</button>
+            </div>
+            <form id="companyForm" class="form-grid">
+              <label>
+                Nom entreprise
+                <input id="companyName" name="companyName" required>
+              </label>
+              <label>
+                SIRET
+                <input id="companySiret" name="companySiret">
+              </label>
+              <label>
+                Téléphone
+                <input id="companyPhone" name="companyPhone">
+              </label>
+              <label>
+                Email
+                <input id="companyEmail" name="companyEmail" type="email">
+              </label>
+              <label class="wide">
+                Adresse entreprise
+                <textarea id="companyAddress" name="companyAddress" rows="3"></textarea>
+              </label>
+              <label class="wide">
+                Logo entreprise
+                <input id="companyLogo" name="companyLogo" type="file" accept="image/*">
+              </label>
+              <div class="form-actions wide">
+                <button id="saveCompanyBtn" class="primary" type="button">Enregistrer paramètres</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <template id="lineTemplate">
+      <tr>
+        <td>
+          <input class="line-description" list="serviceSuggestions" value="Peinture murs">
+          <textarea class="line-note" rows="2" placeholder="Texte libre, remarque ou condition particulière"></textarea>
+        </td>
+        <td><input class="line-quantity" type="number" min="0" step="0.01" value="1"></td>
+        <td><input class="line-unit" value="m²"></td>
+        <td><input class="line-price" type="number" min="0" step="0.01" value="0"></td>
+        <td class="line-total">0,00 €</td>
+        <td><button class="icon-button remove-line" type="button" title="Supprimer la ligne">×</button></td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
