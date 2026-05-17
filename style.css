@@ -251,6 +251,11 @@ h3 {
   border-top: 1px solid var(--line);
 }
 
+.mobile-stepper,
+.mobile-step-actions {
+  display: none;
+}
+
 .section-title {
   display: flex;
   align-items: center;
@@ -1114,6 +1119,14 @@ textarea:focus {
     font-size: 16px;
   }
 
+  [data-mobile-step] {
+    display: none !important;
+  }
+
+  [data-mobile-step].mobile-step-active {
+    display: block !important;
+  }
+
   .app-header,
   .workspace,
   .single-column,
@@ -1150,6 +1163,70 @@ textarea:focus {
   .preview-panel {
     border-radius: 8px;
     padding: 12px;
+    box-shadow: 0 8px 24px rgba(22, 33, 38, 0.09);
+  }
+
+  .mobile-stepper {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    background: #fff;
+  }
+
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .step-indicator span {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 800;
+  }
+
+  .step-indicator strong {
+    color: var(--primary);
+    font-size: 1.08rem;
+  }
+
+  .step-dots {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 7px;
+  }
+
+  .step-dot {
+    display: block;
+    height: 7px;
+    border-radius: 999px;
+    background: #dce3e1;
+  }
+
+  .step-dot.done,
+  .step-dot.active {
+    background: var(--primary-2);
+  }
+
+  .form-section.mobile-step-active {
+    border-top: 0;
+    padding-top: 4px;
+  }
+
+  .mobile-step-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .mobile-step-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
   }
 
   input,
@@ -1196,10 +1273,18 @@ textarea:focus {
     bottom: 0;
   }
 
+  .grand-total strong {
+    font-size: 1.45rem;
+  }
+
   .quote-table {
     display: block;
     width: 100%;
     max-width: 100%;
+  }
+
+  .preview-panel.mobile-step-active {
+    margin-top: 12px;
   }
 }
 

@@ -56,6 +56,8 @@ const linesBody = document.querySelector("#linesBody");
 const mobileLinesBody = document.querySelector("#mobileLinesBody");
 const lineTemplate = document.querySelector("#lineTemplate");
 const preview = document.querySelector("#quotePreview");
+const mobileStepLabels = ["Client", "Chantier", "Prestations", "Photos", "Résumé / PDF"];
+let currentMobileStep = 1;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -65,6 +67,7 @@ function init() {
   startQuote(loadCurrentQuote());
   bindEvents();
   refreshHistory();
+  updateMobileStep();
   calculateAndRender();
 
   disableServiceWorkerCache();
@@ -114,6 +117,37 @@ function bindEvents() {
   document.querySelector("#saveCompanyBtn").addEventListener("click", saveCompanySettings);
   document.querySelector("#resetCompanyBtn").addEventListener("click", resetCompanySettings);
   document.querySelector("#companyLogo").addEventListener("change", handleCompanyLogo);
+  document.querySelector("#prevStepBtn").addEventListener("click", previousMobileStep);
+  document.querySelector("#nextStepBtn").addEventListener("click", nextMobileStep);
+}
+
+function previousMobileStep() {
+  currentMobileStep = Math.max(1, currentMobileStep - 1);
+  updateMobileStep();
+}
+
+function nextMobileStep() {
+  currentMobileStep = Math.min(mobileStepLabels.length, currentMobileStep + 1);
+  updateMobileStep();
+}
+
+function updateMobileStep() {
+  document.querySelectorAll("[data-mobile-step]").forEach((element) => {
+    element.classList.toggle("mobile-step-active", Number(element.dataset.mobileStep) === currentMobileStep);
+  });
+
+  document.querySelector("#stepCounter").textContent = `Étape ${currentMobileStep}/${mobileStepLabels.length}`;
+  document.querySelector("#stepTitle").textContent = mobileStepLabels[currentMobileStep - 1];
+  document.querySelectorAll(".step-dot").forEach((dot, index) => {
+    dot.classList.toggle("active", index === currentMobileStep - 1);
+    dot.classList.toggle("done", index < currentMobileStep - 1);
+  });
+
+  const previousButton = document.querySelector("#prevStepBtn");
+  const nextButton = document.querySelector("#nextStepBtn");
+  previousButton.disabled = currentMobileStep === 1;
+  nextButton.textContent = currentMobileStep === mobileStepLabels.length ? "Résumé affiché" : "Suivant";
+  nextButton.disabled = currentMobileStep === mobileStepLabels.length;
 }
 
 function disableServiceWorkerCache() {
@@ -130,6 +164,7 @@ function showView(viewId) {
     button.classList.toggle("active", button.dataset.view === viewId);
   });
   if (viewId === "historyView") refreshHistory();
+  if (viewId === "quoteView") updateMobileStep();
 }
 
 function ensureCompany() {
