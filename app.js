@@ -19,12 +19,49 @@ const DEFAULT_LINES = [
   { kind: "service", description: "Peinture plafond", quantity: 0, unit: "m²", unitPrice: 22, note: "" },
   { kind: "service", description: "Sous-couche", quantity: 0, unit: "m²", unitPrice: 8, note: "" },
   { kind: "service", description: "Préparation support", quantity: 1, unit: "forfait", unitPrice: 120, note: "" },
-  { kind: "service", description: "Rebouchage", quantity: 1, unit: "forfait", unitPrice: 80, note: "" },
+  { kind: "service", description: "Rebouchage léger", quantity: 1, unit: "forfait", unitPrice: 80, note: "" },
   { kind: "service", description: "Ponçage", quantity: 1, unit: "forfait", unitPrice: 90, note: "" },
-  { kind: "service", description: "Protection chantier", quantity: 1, unit: "forfait", unitPrice: 75, note: "" },
+  { kind: "service", description: "Protection des sols", quantity: 1, unit: "forfait", unitPrice: 75, note: "" },
   { kind: "service", description: "Nettoyage fin de chantier", quantity: 1, unit: "forfait", unitPrice: 60, note: "" },
   { kind: "service", description: "Déplacement", quantity: 1, unit: "forfait", unitPrice: 45, note: "" },
-  { kind: "service", description: "Main-d'œuvre", quantity: 1, unit: "forfait", unitPrice: 250, note: "" }
+  { kind: "service", description: "Main-d’œuvre", quantity: 1, unit: "forfait", unitPrice: 250, note: "" }
+];
+
+const PRESTATION_OPTIONS = [
+  "Peinture murs",
+  "Peinture plafond",
+  "Sous-couche",
+  "Préparation support",
+  "Rebouchage léger",
+  "Rebouchage important",
+  "Ponçage",
+  "Lessivage",
+  "Dépoussiérage",
+  "Protection des sols",
+  "Protection des meubles",
+  "Protection des plinthes",
+  "Dépose papier peint",
+  "Pose toile de verre",
+  "Peinture boiseries",
+  "Peinture portes",
+  "Peinture fenêtres",
+  "Peinture radiateurs",
+  "Peinture façade",
+  "Nettoyage fin de chantier",
+  "Déplacement",
+  "Main-d’œuvre",
+  "Forfait chantier",
+  "Autre / texte libre"
+];
+
+const INCLUDED_OPTIONS = [
+  "Protection chantier incluse",
+  "Nettoyage inclus",
+  "Fourniture peinture incluse",
+  "Déplacement inclus",
+  "Rebouchage inclus",
+  "Ponçage inclus",
+  "Sous-couche incluse"
 ];
 
 const quoteFields = [
@@ -99,7 +136,7 @@ function bindEvents() {
   });
 
   document.querySelector("#addTextBtn").addEventListener("click", () => {
-    addLine({ kind: "text", description: "Texte libre", quantity: 0, unit: "", unitPrice: 0, note: "Remarque chantier, condition particulière ou précision technique." });
+    addLine({ kind: "text", service: "Autre / texte libre", description: "Texte libre", quantity: 0, unit: "", unitPrice: 0, note: "Remarque chantier, condition particulière ou précision technique." });
     calculateAndRender();
     saveCurrentQuietly();
   });
@@ -262,11 +299,13 @@ function addLine(line) {
   const row = lineTemplate.content.firstElementChild.cloneNode(true);
   row.dataset.kind = line.kind || "service";
   row.classList.toggle("text-row", row.dataset.kind === "text");
+  setupDesktopServiceSelect(row, line.service || line.description || "");
   row.querySelector(".line-description").value = line.description || "";
   row.querySelector(".line-quantity").value = line.quantity || 0;
   row.querySelector(".line-unit").value = line.unit || "";
   row.querySelector(".line-price").value = line.unitPrice || 0;
   row.querySelector(".line-note").value = line.note || "";
+  renderIncludedOptions(row.querySelector(".line-included-options"), line.includedOptions || []);
   if (row.dataset.kind === "text") {
     row.querySelector(".line-quantity").value = 0;
     row.querySelector(".line-unit").value = "";
@@ -285,8 +324,54 @@ function addLine(line) {
       saveCurrentQuietly();
     });
   });
+  row.querySelectorAll(".line-included-options input").forEach((input) => {
+    input.addEventListener("change", () => {
+      renderMobileLineCards();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+  });
   linesBody.appendChild(row);
   renderMobileLineCards();
+}
+
+function setupDesktopServiceSelect(row, selectedValue) {
+  const select = row.querySelector(".line-service");
+  select.innerHTML = serviceOptionsHtml(selectedValue);
+  select.addEventListener("change", () => {
+    applyServiceChoice(row, select.value);
+    renderMobileLineCards();
+    calculateAndRender();
+    saveCurrentQuietly();
+  });
+}
+
+function applyServiceChoice(row, value) {
+  const description = row.querySelector(".line-description");
+  if (value === "Autre / texte libre") {
+    description.value = "";
+    description.placeholder = "Saisir une prestation personnalisée";
+    description.focus();
+    return;
+  }
+  description.placeholder = "";
+  description.value = value;
+}
+
+function serviceOptionsHtml(selectedValue) {
+  const selected = PRESTATION_OPTIONS.includes(selectedValue) ? selectedValue : "";
+  return [`<option value="">Choisir une prestation</option>`, ...PRESTATION_OPTIONS.map((option) => {
+    return `<option value="${escapeAttribute(option)}"${option === selected ? " selected" : ""}>${escapeHtml(option)}</option>`;
+  })].join("");
+}
+
+function renderIncludedOptions(container, selectedOptions) {
+  container.innerHTML = INCLUDED_OPTIONS.map((option) => `
+    <label class="included-option">
+      <input type="checkbox" value="${escapeAttribute(option)}"${selectedOptions.includes(option) ? " checked" : ""}>
+      <span>${escapeHtml(option)}</span>
+    </label>
+  `).join("");
 }
 
 function renderMobileLineCards() {
@@ -295,6 +380,7 @@ function renderMobileLineCards() {
 
   getLineRows().forEach((row, index) => {
     const kind = row.dataset.kind || "service";
+    const selectedOptions = getIncludedOptionsFromRow(row);
     const card = document.createElement("article");
     card.className = `mobile-line-card ${kind === "text" ? "mobile-text-card" : ""}`;
     card.dataset.index = String(index);
@@ -302,16 +388,23 @@ function renderMobileLineCards() {
     if (kind === "text") {
       card.innerHTML = `
         <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
+        <label>Prestation
+          <select class="mobile-service">${serviceOptionsHtml(row.querySelector(".line-service").value)}</select>
+        </label>
         <label>Désignation
           <input class="mobile-description" value="${escapeAttribute(row.querySelector(".line-description").value)}">
         </label>
-        <label>Texte libre
-          <textarea class="mobile-note" rows="3">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
+        <label>Observations / précisions
+          <textarea class="mobile-note" rows="3" placeholder="Support abîmé, peinture fournie par le client, réserve technique...">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
         </label>
+        <div class="mobile-included-options">${includedOptionsHtml(selectedOptions)}</div>
       `;
     } else {
       card.innerHTML = `
         <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
+        <label>Prestation
+          <select class="mobile-service">${serviceOptionsHtml(row.querySelector(".line-service").value)}</select>
+        </label>
         <label>Désignation
           <input class="mobile-description" list="serviceSuggestions" value="${escapeAttribute(row.querySelector(".line-description").value)}">
         </label>
@@ -326,15 +419,24 @@ function renderMobileLineCards() {
         <label>Unité
           <input class="mobile-unit" value="${escapeAttribute(row.querySelector(".line-unit").value)}">
         </label>
-        <label>Note
-          <textarea class="mobile-note" rows="2">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
+        <label>Observations / précisions
+          <textarea class="mobile-note" rows="2" placeholder="Support abîmé, peinture fournie par le client, réserve technique...">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
         </label>
+        <div class="mobile-included-options">${includedOptionsHtml(selectedOptions)}</div>
         <div class="mobile-line-total"><span>Total</span><strong>${row.querySelector(".line-total").textContent}</strong></div>
       `;
     }
 
     card.querySelector(".mobile-remove-line").addEventListener("click", () => {
       row.remove();
+      renderMobileLineCards();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+
+    card.querySelector(".mobile-service").addEventListener("change", () => {
+      row.querySelector(".line-service").value = card.querySelector(".mobile-service").value;
+      applyServiceChoice(row, card.querySelector(".mobile-service").value);
       renderMobileLineCards();
       calculateAndRender();
       saveCurrentQuietly();
@@ -349,13 +451,23 @@ function renderMobileLineCards() {
       });
     });
 
+    card.querySelectorAll(".mobile-included-options input").forEach((input) => {
+      input.addEventListener("change", () => {
+        updateDesktopLineFromMobileCard(row, card);
+        calculateAndRender();
+        saveCurrentQuietly();
+      });
+    });
+
     mobileLinesBody.appendChild(card);
   });
 }
 
 function updateDesktopLineFromMobileCard(row, card) {
+  row.querySelector(".line-service").value = card.querySelector(".mobile-service")?.value || "";
   row.querySelector(".line-description").value = card.querySelector(".mobile-description")?.value || "";
   row.querySelector(".line-note").value = card.querySelector(".mobile-note")?.value || "";
+  syncIncludedOptionsToRow(row, getIncludedOptionsFromCard(card));
 
   if ((row.dataset.kind || "service") === "text") return;
   row.querySelector(".line-quantity").value = card.querySelector(".mobile-quantity")?.value || 0;
@@ -366,6 +478,29 @@ function updateDesktopLineFromMobileCard(row, card) {
 function updateMobileCardTotal(row, card) {
   const total = card.querySelector(".mobile-line-total strong");
   if (total) total.textContent = row.querySelector(".line-total").textContent;
+}
+
+function includedOptionsHtml(selectedOptions) {
+  return INCLUDED_OPTIONS.map((option) => `
+    <label class="included-option">
+      <input type="checkbox" value="${escapeAttribute(option)}"${selectedOptions.includes(option) ? " checked" : ""}>
+      <span>${escapeHtml(option)}</span>
+    </label>
+  `).join("");
+}
+
+function getIncludedOptionsFromRow(row) {
+  return Array.from(row.querySelectorAll(".line-included-options input:checked")).map((input) => input.value);
+}
+
+function getIncludedOptionsFromCard(card) {
+  return Array.from(card.querySelectorAll(".mobile-included-options input:checked")).map((input) => input.value);
+}
+
+function syncIncludedOptionsToRow(row, selectedOptions) {
+  row.querySelectorAll(".line-included-options input").forEach((input) => {
+    input.checked = selectedOptions.includes(input.value);
+  });
 }
 
 function syncSurfaceLines() {
@@ -396,12 +531,14 @@ function collectQuote() {
     row.querySelector(".line-total").textContent = kind === "text" ? "Texte" : euros.format(total);
     return {
       kind,
+      service: row.querySelector(".line-service").value,
       description: row.querySelector(".line-description").value.trim(),
       quantity,
       unit: row.querySelector(".line-unit").value.trim(),
       unitPrice,
       total,
-      note: row.querySelector(".line-note").value.trim()
+      note: row.querySelector(".line-note").value.trim(),
+      includedOptions: getIncludedOptionsFromRow(row)
     };
   });
 
@@ -435,12 +572,13 @@ function renderPreview(quote) {
   const company = quote.company;
   const logo = company.logo ? `<img src="${company.logo}" alt="Logo Will'Paint">` : initials(company.name);
   const rows = quote.lines.map((line) => {
+    const details = formatLineDetails(line);
     if (line.kind === "text") {
-      return `<tr><td class="note-cell" colspan="5"><strong>${escapeHtml(line.description)}</strong><br>${nl2br(line.note)}</td></tr>`;
+      return `<tr><td class="note-cell" colspan="5"><strong>${escapeHtml(line.description)}</strong>${details}</td></tr>`;
     }
     return `
       <tr>
-        <td>${escapeHtml(line.description)}${line.note ? `<br><span class="muted">${escapeHtml(line.note)}</span>` : ""}</td>
+        <td>${escapeHtml(line.description)}${details}</td>
         <td class="amount">${formatNumber(line.quantity)}</td>
         <td>${escapeHtml(line.unit)}</td>
         <td class="amount">${euros.format(line.unitPrice)}</td>
@@ -541,6 +679,15 @@ function renderPhotos() {
       saveCurrentQuietly();
     });
   });
+}
+
+function formatLineDetails(line) {
+  const parts = [];
+  if (line.note) parts.push(`<span class="muted">${escapeHtml(line.note)}</span>`);
+  if (line.includedOptions && line.includedOptions.length) {
+    parts.push(`<span class="muted">${line.includedOptions.map(escapeHtml).join(" · ")}</span>`);
+  }
+  return parts.length ? `<br>${parts.join("<br>")}` : "";
 }
 
 function saveQuote() {
@@ -674,16 +821,18 @@ function exportJson() {
 
 function exportCsv() {
   const quote = collectQuote();
-  const headers = ["numero_devis", "date_devis", "client", "designation", "quantite", "unite", "prix_unitaire_ht", "total_ligne_ht", "note"];
+  const headers = ["numero_devis", "date_devis", "client", "prestation_choisie", "designation", "quantite", "unite", "prix_unitaire_ht", "total_ligne_ht", "options_incluses", "observations"];
   const rows = quote.lines.map((line) => [
     quote.quoteNumber,
     quote.quoteDate,
     quote.clientName,
+    line.service,
     line.description,
     line.quantity,
     line.unit,
     line.unitPrice,
     line.total,
+    (line.includedOptions || []).join(", "),
     line.note
   ]);
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\n");
@@ -697,8 +846,9 @@ function exportLibreOfficeHtml() {
 
 function buildLibreOfficeHtml(quote) {
   const rows = quote.lines.map((line) => {
-    if (line.kind === "text") return `<tr><td colspan="5"><strong>${escapeHtml(line.description)}</strong><br>${nl2br(line.note)}</td></tr>`;
-    return `<tr><td>${escapeHtml(line.description)}</td><td>${formatNumber(line.quantity)}</td><td>${escapeHtml(line.unit)}</td><td>${euros.format(line.unitPrice)}</td><td>${euros.format(line.total)}</td></tr>`;
+    const details = formatPlainLineDetails(line);
+    if (line.kind === "text") return `<tr><td colspan="5"><strong>${escapeHtml(line.description)}</strong>${details}</td></tr>`;
+    return `<tr><td>${escapeHtml(line.description)}${details}</td><td>${formatNumber(line.quantity)}</td><td>${escapeHtml(line.unit)}</td><td>${euros.format(line.unitPrice)}</td><td>${euros.format(line.total)}</td></tr>`;
   }).join("");
 
   return `<!doctype html>
@@ -735,6 +885,15 @@ function buildLibreOfficeHtml(quote) {
   <p style="margin-top: 48px;"><strong>Bon pour accord</strong></p>
 </body>
 </html>`;
+}
+
+function formatPlainLineDetails(line) {
+  const parts = [];
+  if (line.note) parts.push(nl2br(line.note));
+  if (line.includedOptions && line.includedOptions.length) {
+    parts.push(escapeHtml(line.includedOptions.join(" · ")));
+  }
+  return parts.length ? `<br><small>${parts.join("<br>")}</small>` : "";
 }
 
 function nextQuoteNumber(increment) {
