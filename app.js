@@ -53,6 +53,7 @@ let currentPhotos = [];
 const form = document.querySelector("#quoteForm");
 const companyForm = document.querySelector("#companyForm");
 const linesBody = document.querySelector("#linesBody");
+const mobileLinesBody = document.querySelector("#mobileLinesBody");
 const lineTemplate = document.querySelector("#lineTemplate");
 const preview = document.querySelector("#quotePreview");
 
@@ -77,6 +78,7 @@ function bindEvents() {
   form.addEventListener("input", (event) => {
     if (["wallSurface", "ceilingSurface", "coatCount"].includes(event.target.id)) {
       syncSurfaceLines();
+      renderMobileLineCards();
     }
     calculateAndRender();
     saveCurrentQuietly();
@@ -237,16 +239,98 @@ function addLine(line) {
   }
   row.querySelector(".remove-line").addEventListener("click", () => {
     row.remove();
+    renderMobileLineCards();
     calculateAndRender();
     saveCurrentQuietly();
   });
   row.querySelectorAll("input, textarea").forEach((input) => {
     input.addEventListener("input", () => {
+      renderMobileLineCards();
       calculateAndRender();
       saveCurrentQuietly();
     });
   });
   linesBody.appendChild(row);
+  renderMobileLineCards();
+}
+
+function renderMobileLineCards() {
+  if (!mobileLinesBody) return;
+  mobileLinesBody.innerHTML = "";
+
+  getLineRows().forEach((row, index) => {
+    const kind = row.dataset.kind || "service";
+    const card = document.createElement("article");
+    card.className = `mobile-line-card ${kind === "text" ? "mobile-text-card" : ""}`;
+    card.dataset.index = String(index);
+
+    if (kind === "text") {
+      card.innerHTML = `
+        <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
+        <label>Désignation
+          <input class="mobile-description" value="${escapeAttribute(row.querySelector(".line-description").value)}">
+        </label>
+        <label>Texte libre
+          <textarea class="mobile-note" rows="3">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
+        </label>
+      `;
+    } else {
+      card.innerHTML = `
+        <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
+        <label>Désignation
+          <input class="mobile-description" list="serviceSuggestions" value="${escapeAttribute(row.querySelector(".line-description").value)}">
+        </label>
+        <div class="mobile-line-grid">
+          <label>Quantité
+            <input class="mobile-quantity" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
+          </label>
+          <label>Prix HT
+            <input class="mobile-price" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-price").value)}">
+          </label>
+        </div>
+        <label>Unité
+          <input class="mobile-unit" value="${escapeAttribute(row.querySelector(".line-unit").value)}">
+        </label>
+        <label>Note
+          <textarea class="mobile-note" rows="2">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
+        </label>
+        <div class="mobile-line-total"><span>Total</span><strong>${row.querySelector(".line-total").textContent}</strong></div>
+      `;
+    }
+
+    card.querySelector(".mobile-remove-line").addEventListener("click", () => {
+      row.remove();
+      renderMobileLineCards();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+
+    card.querySelectorAll("input, textarea").forEach((input) => {
+      input.addEventListener("input", () => {
+        updateDesktopLineFromMobileCard(row, card);
+        calculateAndRender();
+        updateMobileCardTotal(row, card);
+        saveCurrentQuietly();
+      });
+    });
+
+    mobileLinesBody.appendChild(card);
+  });
+}
+
+function updateDesktopLineFromMobileCard(row, card) {
+  row.querySelector(".line-description").value = card.querySelector(".mobile-description")?.value || "";
+  row.querySelector(".line-note").value = card.querySelector(".mobile-note")?.value || "";
+
+  if ((row.dataset.kind || "service") === "text") return;
+  row.querySelector(".line-quantity").value = card.querySelector(".mobile-quantity")?.value || 0;
+  row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "";
+  row.querySelector(".line-price").value = card.querySelector(".mobile-price")?.value || 0;
+}
+
+function updateMobileCardTotal(row, card) {
+  const total = card.querySelector(".mobile-line-total strong");
+  if (total) total.textContent = row.querySelector(".line-total").textContent;
 }
 
 function syncSurfaceLines() {
@@ -300,7 +384,16 @@ function calculateAndRender() {
   document.querySelector("#totalHt").textContent = euros.format(quote.totalHt);
   document.querySelector("#totalVat").textContent = euros.format(quote.totalVat);
   document.querySelector("#totalTtc").textContent = euros.format(quote.totalTtc);
+  updateAllMobileCardTotals();
   renderPreview(quote);
+}
+
+function updateAllMobileCardTotals() {
+  if (!mobileLinesBody) return;
+  getLineRows().forEach((row, index) => {
+    const card = mobileLinesBody.querySelector(`.mobile-line-card[data-index="${index}"]`);
+    if (card) updateMobileCardTotal(row, card);
+  });
 }
 
 function renderPreview(quote) {

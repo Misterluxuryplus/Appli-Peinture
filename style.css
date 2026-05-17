@@ -313,9 +313,80 @@ textarea:focus {
 }
 
 .table-wrap {
+  display: none;
   overflow: visible;
   border: 0;
   border-radius: 0;
+}
+
+.mobile-lines {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-line-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-soft);
+}
+
+.mobile-line-card label {
+  width: 100%;
+}
+
+.mobile-line-card input,
+.mobile-line-card textarea {
+  width: 100%;
+}
+
+.mobile-line-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mobile-remove-line {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 50%;
+  padding: 0;
+  color: #fff;
+  background: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.mobile-line-card > label:first-of-type {
+  padding-right: 38px;
+}
+
+.mobile-line-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.mobile-line-total span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.mobile-line-total strong {
+  font-size: 1.15rem;
 }
 
 .line-table {
@@ -806,6 +877,14 @@ textarea:focus {
   gap: 8px;
 }
 
+.mobile-version {
+  padding: 14px 12px 22px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 @media (min-width: 721px) {
   .app-header,
   .section-heading,
@@ -868,9 +947,14 @@ textarea:focus {
   }
 
   .table-wrap {
+    display: block;
     overflow-x: auto;
     border: 1px solid var(--line);
     border-radius: 8px;
+  }
+
+  .mobile-lines {
+    display: none;
   }
 
   .line-table {
@@ -1015,6 +1099,107 @@ textarea:focus {
   .preview-panel {
     position: sticky;
     top: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-size: 16px;
+  }
+
+  .app-header,
+  .workspace,
+  .single-column,
+  .form-panel,
+  .page-panel,
+  .preview-panel,
+  .quote-document {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .app-header,
+  .section-heading,
+  .photo-uploader,
+  .history-item,
+  .workspace,
+  .form-grid,
+  .doc-header,
+  .doc-grid,
+  .signature-zone,
+  .totals-editor {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace,
+  .single-column {
+    padding: 10px;
+  }
+
+  .panel,
+  .form-panel,
+  .page-panel,
+  .preview-panel {
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  .primary,
+  .secondary,
+  .upload-button {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .table-wrap {
+    display: none !important;
+  }
+
+  .mobile-lines {
+    display: grid !important;
+    width: 100%;
+  }
+
+  .mobile-line-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-line-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .line-actions,
+  .preview-toolbar,
+  .top-nav,
+  .history-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .totals-editor {
+    width: 100%;
+    position: sticky;
+    bottom: 0;
+  }
+
+  .quote-table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
   }
 }
 

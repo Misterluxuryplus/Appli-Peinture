@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css?v=1.2">
+    <link rel="stylesheet" href="style.css?v=1.2-mobile">
   </head>
   <body>
     <header class="app-header">
@@ -153,6 +153,7 @@
                     <tbody id="linesBody"></tbody>
                   </table>
                 </div>
+                <div id="mobileLinesBody" class="mobile-lines" aria-label="Prestations en cartes mobiles"></div>
                 <div class="line-actions">
                   <button id="addLineBtn" class="secondary" type="button">Ajouter une ligne</button>
                   <button id="addTextBtn" class="secondary" type="button">Ajouter texte libre</button>
@@ -284,6 +285,8 @@
       </section>
     </main>
 
+    <footer class="mobile-version">Version mobile responsive 1.2</footer>
+
     <template id="lineTemplate">
       <tr>
         <td>
@@ -298,6 +301,6 @@
       </tr>
     </template>
 
-    <script src="app.js?v=1.2"></script>
+    <script src="app.js?v=1.2-mobile"></script>
   </body>
 </html>
