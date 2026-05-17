@@ -324,6 +324,29 @@ textarea:focus {
   border-radius: 0;
 }
 
+.service-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.service-chip {
+  min-height: 38px;
+  width: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--primary);
+  background: #fff;
+  font-size: 0.92rem;
+}
+
+.service-chip:hover {
+  border-color: var(--primary-2);
+  background: #edf4f2;
+}
+
 .mobile-lines {
   display: grid;
   gap: 12px;
@@ -479,82 +502,8 @@ textarea:focus {
   text-transform: uppercase;
 }
 
-.line-note {
-  display: none;
-  margin-top: 8px;
-}
-
-.line-service {
-  margin-bottom: 8px;
-}
-
-.details-toggle,
-.mobile-details-toggle {
-  min-height: 40px;
-  width: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 12px;
-  color: var(--primary);
-  background: #fff;
-  font-size: 0.9rem;
-  justify-self: start;
-}
-
-.line-details-panel,
-.mobile-details-panel {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px;
-  background: #fff;
-}
-
-.line-details-panel[hidden],
-.mobile-details-panel[hidden] {
-  display: none;
-}
-
-.line-included-options,
-.mobile-included-options {
-  display: grid;
-  gap: 7px;
-  margin-top: 8px;
-}
-
-.included-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 0.84rem;
-  font-weight: 700;
-}
-
-.included-option input {
-  flex: 0 0 auto;
-  width: 18px;
-  min-height: auto;
-  height: 18px;
-  margin: 0;
-}
-
-.included-option span {
-  min-width: 0;
-}
-
-.mobile-line-card .mobile-details-toggle {
-  width: 100%;
-}
-
 .line-table td:first-child {
   padding-right: 40px;
-}
-
-.text-row .line-note {
-  display: block;
 }
 
 .text-row td:nth-child(2),
@@ -1329,6 +1278,16 @@ textarea:focus {
   .history-actions {
     display: grid;
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .service-palette {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .service-chip {
     width: 100%;
   }
 

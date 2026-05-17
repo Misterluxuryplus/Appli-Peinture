@@ -1,4 +1,4 @@
-const CACHE_NAME = "willpaint-disabled-v1.4-simple";
+const CACHE_NAME = "willpaint-disabled-v1.5-click";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

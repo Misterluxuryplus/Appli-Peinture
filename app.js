@@ -14,20 +14,8 @@ const DEFAULT_COMPANY = {
   logo: ""
 };
 
-const DEFAULT_LINES = [
-  { kind: "service", description: "Peinture murs", quantity: 0, unit: "m²", unitPrice: 18, note: "" },
-  { kind: "service", description: "Peinture plafond", quantity: 0, unit: "m²", unitPrice: 22, note: "" },
-  { kind: "service", description: "Sous-couche", quantity: 0, unit: "m²", unitPrice: 8, note: "" },
-  { kind: "service", description: "Préparation support", quantity: 1, unit: "forfait", unitPrice: 120, note: "" },
-  { kind: "service", description: "Rebouchage léger", quantity: 1, unit: "forfait", unitPrice: 80, note: "" },
-  { kind: "service", description: "Ponçage", quantity: 1, unit: "forfait", unitPrice: 90, note: "" },
-  { kind: "service", description: "Protection des sols", quantity: 1, unit: "forfait", unitPrice: 75, note: "" },
-  { kind: "service", description: "Nettoyage fin de chantier", quantity: 1, unit: "forfait", unitPrice: 60, note: "" },
-  { kind: "service", description: "Déplacement", quantity: 1, unit: "forfait", unitPrice: 45, note: "" },
-  { kind: "service", description: "Main-d’œuvre", quantity: 1, unit: "forfait", unitPrice: 250, note: "" }
-];
-
-const PRESTATION_OPTIONS = [
+const AVAILABLE_SERVICES = [
+  "Lessivage",
   "Peinture murs",
   "Peinture plafond",
   "Sous-couche",
@@ -35,33 +23,19 @@ const PRESTATION_OPTIONS = [
   "Rebouchage léger",
   "Rebouchage important",
   "Ponçage",
-  "Lessivage",
-  "Dépoussiérage",
   "Protection des sols",
   "Protection des meubles",
-  "Protection des plinthes",
   "Dépose papier peint",
   "Pose toile de verre",
   "Peinture boiseries",
   "Peinture portes",
   "Peinture fenêtres",
   "Peinture radiateurs",
-  "Peinture façade",
   "Nettoyage fin de chantier",
   "Déplacement",
   "Main-d’œuvre",
   "Forfait chantier",
-  "Autre / texte libre"
-];
-
-const INCLUDED_OPTIONS = [
-  "Protection chantier incluse",
-  "Nettoyage inclus",
-  "Fourniture peinture incluse",
-  "Déplacement inclus",
-  "Rebouchage inclus",
-  "Ponçage inclus",
-  "Sous-couche incluse"
+  "Texte libre"
 ];
 
 const quoteFields = [
@@ -79,6 +53,7 @@ const quoteFields = [
   "supportState",
   "prepNeeded",
   "vatRate",
+  "quoteObservations",
   "conditions"
 ];
 
@@ -91,6 +66,7 @@ const form = document.querySelector("#quoteForm");
 const companyForm = document.querySelector("#companyForm");
 const linesBody = document.querySelector("#linesBody");
 const mobileLinesBody = document.querySelector("#mobileLinesBody");
+const servicePalette = document.querySelector("#servicePalette");
 const lineTemplate = document.querySelector("#lineTemplate");
 const preview = document.querySelector("#quotePreview");
 const mobileStepLabels = ["Client", "Chantier", "Prestations", "Photos", "Résumé / PDF"];
@@ -102,6 +78,7 @@ function init() {
   ensureCompany();
   fillCompanyForm(loadCompany());
   startQuote(loadCurrentQuote());
+  renderServicePalette();
   bindEvents();
   refreshHistory();
   updateMobileStep();
@@ -129,18 +106,6 @@ function bindEvents() {
     saveCurrentQuietly();
   });
 
-  document.querySelector("#addLineBtn").addEventListener("click", () => {
-    addLine({ kind: "service", description: "Nouvelle prestation", quantity: 1, unit: "forfait", unitPrice: 0, note: "" });
-    calculateAndRender();
-    saveCurrentQuietly();
-  });
-
-  document.querySelector("#addTextBtn").addEventListener("click", () => {
-    addLine({ kind: "text", service: "Autre / texte libre", description: "Texte libre", quantity: 0, unit: "", unitPrice: 0, note: "Remarque chantier, condition particulière ou précision technique." });
-    calculateAndRender();
-    saveCurrentQuietly();
-  });
-
   document.querySelector("#calculateBtn").addEventListener("click", calculateAndRender);
   document.querySelector("#saveQuoteBtn").addEventListener("click", saveQuote);
   document.querySelector("#newQuoteBtn").addEventListener("click", newQuote);
@@ -156,6 +121,22 @@ function bindEvents() {
   document.querySelector("#companyLogo").addEventListener("change", handleCompanyLogo);
   document.querySelector("#prevStepBtn").addEventListener("click", previousMobileStep);
   document.querySelector("#nextStepBtn").addEventListener("click", nextMobileStep);
+}
+
+function renderServicePalette() {
+  servicePalette.innerHTML = AVAILABLE_SERVICES.map((service) => {
+    return `<button class="service-chip" type="button" data-service="${escapeAttribute(service)}">${escapeHtml(service)}</button>`;
+  }).join("");
+
+  servicePalette.querySelectorAll(".service-chip").forEach((button) => {
+    button.addEventListener("click", () => {
+      const service = button.dataset.service;
+      const description = service === "Texte libre" ? "" : service;
+      addLine({ kind: "service", description, quantity: 1, unit: "forfait", unitPrice: 0 });
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+  });
 }
 
 function previousMobileStep() {
@@ -268,7 +249,7 @@ function startQuote(savedQuote) {
   });
   currentPhotos = quote.photos || [];
   linesBody.innerHTML = "";
-  (quote.lines || DEFAULT_LINES).forEach(addLine);
+  (quote.lines || []).forEach(addLine);
   syncSurfaceLines();
   renderPhotos();
 }
@@ -289,8 +270,9 @@ function createBlankQuote() {
     supportState: "Bon",
     prepNeeded: "Oui",
     vatRate: "0.212",
+    quoteObservations: "",
     conditions: "Devis valable 30 jours. Acompte de 30 % à la commande. Solde à la réception des travaux.",
-    lines: DEFAULT_LINES,
+    lines: [],
     photos: []
   };
 }
@@ -298,20 +280,10 @@ function createBlankQuote() {
 function addLine(line) {
   const row = lineTemplate.content.firstElementChild.cloneNode(true);
   row.dataset.kind = line.kind || "service";
-  row.classList.toggle("text-row", row.dataset.kind === "text");
-  setupDesktopServiceSelect(row, line.service || line.description || "");
   row.querySelector(".line-description").value = line.description || "";
   row.querySelector(".line-quantity").value = line.quantity || 0;
   row.querySelector(".line-unit").value = line.unit || "";
   row.querySelector(".line-price").value = line.unitPrice || 0;
-  row.querySelector(".line-note").value = line.note || "";
-  renderIncludedOptions(row.querySelector(".line-included-options"), line.includedOptions || []);
-  setupDetailsToggle(row);
-  if (row.dataset.kind === "text") {
-    row.querySelector(".line-quantity").value = 0;
-    row.querySelector(".line-unit").value = "";
-    row.querySelector(".line-price").value = 0;
-  }
   row.querySelector(".remove-line").addEventListener("click", () => {
     row.remove();
     renderMobileLineCards();
@@ -330,64 +302,8 @@ function addLine(line) {
       saveCurrentQuietly();
     });
   });
-  row.querySelectorAll(".line-included-options input").forEach((input) => {
-    input.addEventListener("change", () => {
-      renderMobileLineCards();
-      calculateAndRender();
-      saveCurrentQuietly();
-    });
-  });
   linesBody.appendChild(row);
   renderMobileLineCards();
-}
-
-function setupDetailsToggle(row) {
-  const button = row.querySelector(".details-toggle");
-  const panel = row.querySelector(".line-details-panel");
-  button.addEventListener("click", () => {
-    const willOpen = panel.hidden;
-    panel.hidden = !willOpen;
-    button.textContent = willOpen ? "Masquer détails" : "+ Détails";
-  });
-}
-
-function setupDesktopServiceSelect(row, selectedValue) {
-  const select = row.querySelector(".line-service");
-  select.innerHTML = serviceOptionsHtml(selectedValue);
-  select.addEventListener("change", () => {
-    applyServiceChoice(row, select.value);
-    renderMobileLineCards();
-    calculateAndRender();
-    saveCurrentQuietly();
-  });
-}
-
-function applyServiceChoice(row, value) {
-  const description = row.querySelector(".line-description");
-  if (value === "Autre / texte libre") {
-    description.value = "";
-    description.placeholder = "Saisir une prestation personnalisée";
-    description.focus();
-    return;
-  }
-  description.placeholder = "";
-  description.value = value;
-}
-
-function serviceOptionsHtml(selectedValue) {
-  const selected = PRESTATION_OPTIONS.includes(selectedValue) ? selectedValue : "";
-  return [`<option value="">Choisir une prestation</option>`, ...PRESTATION_OPTIONS.map((option) => {
-    return `<option value="${escapeAttribute(option)}"${option === selected ? " selected" : ""}>${escapeHtml(option)}</option>`;
-  })].join("");
-}
-
-function renderIncludedOptions(container, selectedOptions) {
-  container.innerHTML = INCLUDED_OPTIONS.map((option) => `
-    <label class="included-option">
-      <input type="checkbox" value="${escapeAttribute(option)}"${selectedOptions.includes(option) ? " checked" : ""}>
-      <span>${escapeHtml(option)}</span>
-    </label>
-  `).join("");
 }
 
 function renderMobileLineCards() {
@@ -395,47 +311,27 @@ function renderMobileLineCards() {
   mobileLinesBody.innerHTML = "";
 
   getLineRows().forEach((row, index) => {
-    const kind = row.dataset.kind || "service";
-    const selectedOptions = getIncludedOptionsFromRow(row);
     const card = document.createElement("article");
-    card.className = `mobile-line-card ${kind === "text" ? "mobile-text-card" : ""}`;
+    card.className = "mobile-line-card";
     card.dataset.index = String(index);
-
-    if (kind === "text") {
-      card.innerHTML = `
-        <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
-        <label>Prestation
-          <select class="mobile-service">${serviceOptionsHtml(row.querySelector(".line-service").value)}</select>
+    card.innerHTML = `
+      <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
+      <label>Désignation
+        <input class="mobile-description" value="${escapeAttribute(row.querySelector(".line-description").value)}">
+      </label>
+      <div class="mobile-line-grid">
+        <label>Quantité
+          <input class="mobile-quantity" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
         </label>
-        <label>Désignation
-          <input class="mobile-description" value="${escapeAttribute(row.querySelector(".line-description").value)}">
-        </label>
-        ${mobileDetailsPanel(row, selectedOptions)}
-      `;
-    } else {
-      card.innerHTML = `
-        <button class="mobile-remove-line" type="button" aria-label="Supprimer la ligne">✕</button>
-        <label>Prestation
-          <select class="mobile-service">${serviceOptionsHtml(row.querySelector(".line-service").value)}</select>
-        </label>
-        <label>Désignation
-          <input class="mobile-description" list="serviceSuggestions" value="${escapeAttribute(row.querySelector(".line-description").value)}">
-        </label>
-        <div class="mobile-line-grid">
-          <label>Quantité
-            <input class="mobile-quantity" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
-          </label>
-          <label>Prix HT
-            <input class="mobile-price" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-price").value)}">
-          </label>
-        </div>
         <label>Unité
           <select class="mobile-unit">${unitOptionsHtml(row.querySelector(".line-unit").value)}</select>
         </label>
-        <div class="mobile-line-total"><span>Total</span><strong>${row.querySelector(".line-total").textContent}</strong></div>
-        ${mobileDetailsPanel(row, selectedOptions)}
-      `;
-    }
+        <label>Prix HT
+          <input class="mobile-price" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-price").value)}">
+        </label>
+      </div>
+      <div class="mobile-line-total"><span>Total HT</span><strong>${row.querySelector(".line-total").textContent}</strong></div>
+    `;
 
     card.querySelector(".mobile-remove-line").addEventListener("click", () => {
       row.remove();
@@ -444,22 +340,7 @@ function renderMobileLineCards() {
       saveCurrentQuietly();
     });
 
-    card.querySelector(".mobile-service").addEventListener("change", () => {
-      row.querySelector(".line-service").value = card.querySelector(".mobile-service").value;
-      applyServiceChoice(row, card.querySelector(".mobile-service").value);
-      renderMobileLineCards();
-      calculateAndRender();
-      saveCurrentQuietly();
-    });
-
-    card.querySelector(".mobile-details-toggle").addEventListener("click", () => {
-      const panel = card.querySelector(".mobile-details-panel");
-      const willOpen = panel.hidden;
-      panel.hidden = !willOpen;
-      card.querySelector(".mobile-details-toggle").textContent = willOpen ? "Masquer détails" : "+ Détails";
-    });
-
-    card.querySelectorAll("input, textarea, .mobile-unit").forEach((input) => {
+    card.querySelectorAll("input, .mobile-unit").forEach((input) => {
       input.addEventListener("input", () => {
         updateDesktopLineFromMobileCard(row, card);
         calculateAndRender();
@@ -474,40 +355,15 @@ function renderMobileLineCards() {
       });
     });
 
-    card.querySelectorAll(".mobile-included-options input").forEach((input) => {
-      input.addEventListener("change", () => {
-        updateDesktopLineFromMobileCard(row, card);
-        calculateAndRender();
-        saveCurrentQuietly();
-      });
-    });
-
     mobileLinesBody.appendChild(card);
   });
 }
 
 function updateDesktopLineFromMobileCard(row, card) {
-  row.querySelector(".line-service").value = card.querySelector(".mobile-service")?.value || "";
   row.querySelector(".line-description").value = card.querySelector(".mobile-description")?.value || "";
-  row.querySelector(".line-note").value = card.querySelector(".mobile-note")?.value || "";
-  syncIncludedOptionsToRow(row, getIncludedOptionsFromCard(card));
-
-  if ((row.dataset.kind || "service") === "text") return;
   row.querySelector(".line-quantity").value = card.querySelector(".mobile-quantity")?.value || 0;
   row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "";
   row.querySelector(".line-price").value = card.querySelector(".mobile-price")?.value || 0;
-}
-
-function mobileDetailsPanel(row, selectedOptions) {
-  return `
-    <button class="mobile-details-toggle" type="button">+ Détails</button>
-    <div class="mobile-details-panel" hidden>
-      <div class="mobile-included-options">${includedOptionsHtml(selectedOptions)}</div>
-      <label>Observations / précisions
-        <textarea class="mobile-note" rows="2" placeholder="Support abîmé, peinture fournie par le client, réserve technique...">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
-      </label>
-    </div>
-  `;
 }
 
 function unitOptionsHtml(selectedUnit) {
@@ -519,29 +375,6 @@ function unitOptionsHtml(selectedUnit) {
 function updateMobileCardTotal(row, card) {
   const total = card.querySelector(".mobile-line-total strong");
   if (total) total.textContent = row.querySelector(".line-total").textContent;
-}
-
-function includedOptionsHtml(selectedOptions) {
-  return INCLUDED_OPTIONS.map((option) => `
-    <label class="included-option">
-      <input type="checkbox" value="${escapeAttribute(option)}"${selectedOptions.includes(option) ? " checked" : ""}>
-      <span>${escapeHtml(option)}</span>
-    </label>
-  `).join("");
-}
-
-function getIncludedOptionsFromRow(row) {
-  return Array.from(row.querySelectorAll(".line-included-options input:checked")).map((input) => input.value);
-}
-
-function getIncludedOptionsFromCard(card) {
-  return Array.from(card.querySelectorAll(".mobile-included-options input:checked")).map((input) => input.value);
-}
-
-function syncIncludedOptionsToRow(row, selectedOptions) {
-  row.querySelectorAll(".line-included-options input").forEach((input) => {
-    input.checked = selectedOptions.includes(input.value);
-  });
 }
 
 function syncSurfaceLines() {
@@ -565,21 +398,17 @@ function collectQuote() {
 
   quote.company = loadCompany();
   quote.lines = getLineRows().map((row) => {
-    const kind = row.dataset.kind || "service";
-    const quantity = kind === "text" ? 0 : parseFloat(row.querySelector(".line-quantity").value) || 0;
-    const unitPrice = kind === "text" ? 0 : parseFloat(row.querySelector(".line-price").value) || 0;
+    const quantity = parseFloat(row.querySelector(".line-quantity").value) || 0;
+    const unitPrice = parseFloat(row.querySelector(".line-price").value) || 0;
     const total = quantity * unitPrice;
-    row.querySelector(".line-total").textContent = kind === "text" ? "Texte" : euros.format(total);
+    row.querySelector(".line-total").textContent = euros.format(total);
     return {
-      kind,
-      service: row.querySelector(".line-service").value,
+      kind: "service",
       description: row.querySelector(".line-description").value.trim(),
       quantity,
       unit: row.querySelector(".line-unit").value.trim(),
       unitPrice,
-      total,
-      note: row.querySelector(".line-note").value.trim(),
-      includedOptions: getIncludedOptionsFromRow(row)
+      total
     };
   });
 
@@ -613,13 +442,9 @@ function renderPreview(quote) {
   const company = quote.company;
   const logo = company.logo ? `<img src="${company.logo}" alt="Logo Will'Paint">` : initials(company.name);
   const rows = quote.lines.map((line) => {
-    const details = formatLineDetails(line);
-    if (line.kind === "text") {
-      return `<tr><td class="note-cell" colspan="5"><strong>${escapeHtml(line.description)}</strong>${details}</td></tr>`;
-    }
     return `
       <tr>
-        <td>${escapeHtml(line.description)}${details}</td>
+        <td>${escapeHtml(line.description)}</td>
         <td class="amount">${formatNumber(line.quantity)}</td>
         <td>${escapeHtml(line.unit)}</td>
         <td class="amount">${euros.format(line.unitPrice)}</td>
@@ -670,6 +495,7 @@ function renderPreview(quote) {
       </div>
     </section>
     ${photos}
+    ${quote.quoteObservations ? `<section class="doc-block"><h3>Observations</h3><p>${nl2br(quote.quoteObservations)}</p></section>` : ""}
     <section class="doc-block"><h3>Conditions</h3><p>${nl2br(quote.conditions)}</p></section>
     <div class="signature-zone">
       <div class="signature-box"><strong>${escapeHtml(company.name)}</strong></div>
@@ -720,15 +546,6 @@ function renderPhotos() {
       saveCurrentQuietly();
     });
   });
-}
-
-function formatLineDetails(line) {
-  const parts = [];
-  if (line.note) parts.push(`<span class="muted">${escapeHtml(line.note)}</span>`);
-  if (line.includedOptions && line.includedOptions.length) {
-    parts.push(`<span class="muted">${line.includedOptions.map(escapeHtml).join(" · ")}</span>`);
-  }
-  return parts.length ? `<br>${parts.join("<br>")}` : "";
 }
 
 function saveQuote() {
@@ -862,19 +679,17 @@ function exportJson() {
 
 function exportCsv() {
   const quote = collectQuote();
-  const headers = ["numero_devis", "date_devis", "client", "prestation_choisie", "designation", "quantite", "unite", "prix_unitaire_ht", "total_ligne_ht", "options_incluses", "observations"];
+  const headers = ["numero_devis", "date_devis", "client", "designation", "quantite", "unite", "prix_unitaire_ht", "total_ligne_ht", "observations_devis"];
   const rows = quote.lines.map((line) => [
     quote.quoteNumber,
     quote.quoteDate,
     quote.clientName,
-    line.service,
     line.description,
     line.quantity,
     line.unit,
     line.unitPrice,
     line.total,
-    (line.includedOptions || []).join(", "),
-    line.note
+    quote.quoteObservations
   ]);
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\n");
   downloadFile(`${quote.quoteNumber}.csv`, csv, "text/csv;charset=utf-8");
@@ -887,9 +702,7 @@ function exportLibreOfficeHtml() {
 
 function buildLibreOfficeHtml(quote) {
   const rows = quote.lines.map((line) => {
-    const details = formatPlainLineDetails(line);
-    if (line.kind === "text") return `<tr><td colspan="5"><strong>${escapeHtml(line.description)}</strong>${details}</td></tr>`;
-    return `<tr><td>${escapeHtml(line.description)}${details}</td><td>${formatNumber(line.quantity)}</td><td>${escapeHtml(line.unit)}</td><td>${euros.format(line.unitPrice)}</td><td>${euros.format(line.total)}</td></tr>`;
+    return `<tr><td>${escapeHtml(line.description)}</td><td>${formatNumber(line.quantity)}</td><td>${escapeHtml(line.unit)}</td><td>${euros.format(line.unitPrice)}</td><td>${euros.format(line.total)}</td></tr>`;
   }).join("");
 
   return `<!doctype html>
@@ -916,6 +729,7 @@ function buildLibreOfficeHtml(quote) {
   <p>${nl2br(quote.siteAddress)}<br>Pièce : ${escapeHtml(quote.roomType)}<br>Support : ${escapeHtml(quote.supportState)} - Préparation : ${escapeHtml(quote.prepNeeded)}</p>
   <h2>Prestations</h2>
   <table><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>PU HT</th><th>Total HT</th></tr></thead><tbody>${rows}</tbody></table>
+  ${quote.quoteObservations ? `<h2>Observations</h2><p>${nl2br(quote.quoteObservations)}</p>` : ""}
   <table class="totaux">
     <tr><td>Total HT</td><td>${euros.format(quote.totalHt)}</td></tr>
     <tr><td>TVA ${formatPercent(quote.vatRate)}</td><td>${euros.format(quote.totalVat)}</td></tr>
@@ -926,15 +740,6 @@ function buildLibreOfficeHtml(quote) {
   <p style="margin-top: 48px;"><strong>Bon pour accord</strong></p>
 </body>
 </html>`;
-}
-
-function formatPlainLineDetails(line) {
-  const parts = [];
-  if (line.note) parts.push(nl2br(line.note));
-  if (line.includedOptions && line.includedOptions.length) {
-    parts.push(escapeHtml(line.includedOptions.join(" · ")));
-  }
-  return parts.length ? `<br><small>${parts.join("<br>")}</small>` : "";
 }
 
 function nextQuoteNumber(increment) {
