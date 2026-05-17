@@ -92,11 +92,13 @@ function bindEvents() {
   document.querySelector("#addLineBtn").addEventListener("click", () => {
     addLine({ kind: "service", description: "Nouvelle prestation", quantity: 1, unit: "forfait", unitPrice: 0, note: "" });
     calculateAndRender();
+    saveCurrentQuietly();
   });
 
   document.querySelector("#addTextBtn").addEventListener("click", () => {
-    addLine({ kind: "text", description: "Remarque chantier", quantity: 0, unit: "", unitPrice: 0, note: "Texte personnalisé à compléter." });
+    addLine({ kind: "text", description: "Texte libre", quantity: 0, unit: "", unitPrice: 0, note: "Remarque chantier, condition particulière ou précision technique." });
     calculateAndRender();
+    saveCurrentQuietly();
   });
 
   document.querySelector("#calculateBtn").addEventListener("click", calculateAndRender);
@@ -223,6 +225,11 @@ function addLine(line) {
   row.querySelector(".line-unit").value = line.unit || "";
   row.querySelector(".line-price").value = line.unitPrice || 0;
   row.querySelector(".line-note").value = line.note || "";
+  if (row.dataset.kind === "text") {
+    row.querySelector(".line-quantity").value = 0;
+    row.querySelector(".line-unit").value = "";
+    row.querySelector(".line-price").value = 0;
+  }
   row.querySelector(".remove-line").addEventListener("click", () => {
     row.remove();
     calculateAndRender();

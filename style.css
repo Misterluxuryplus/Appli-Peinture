@@ -367,6 +367,13 @@ textarea:focus {
   display: block;
 }
 
+.text-row td:nth-child(2),
+.text-row td:nth-child(3),
+.text-row td:nth-child(4),
+.text-row td:nth-child(5) {
+  display: none;
+}
+
 .text-row .line-quantity,
 .text-row .line-unit,
 .text-row .line-price {
@@ -386,6 +393,19 @@ textarea:focus {
   background: var(--danger);
   font-size: 1.4rem;
   line-height: 1;
+}
+
+.danger-button {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #fff;
+  background: var(--danger);
+}
+
+.danger-button:hover {
+  background: #842f2f;
 }
 
 .line-actions {
@@ -751,6 +771,21 @@ textarea:focus {
 
   .line-table td::before {
     content: none !important;
+  }
+
+  .line-table .text-row td:nth-child(2),
+  .line-table .text-row td:nth-child(3),
+  .line-table .text-row td:nth-child(4),
+  .line-table .text-row td:nth-child(5) {
+    display: none;
+  }
+
+  .line-table .text-row td:first-child {
+    display: table-cell;
+  }
+
+  .line-table .text-row td:last-child {
+    display: table-cell;
   }
 
   .preview-panel {
