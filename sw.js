@@ -4,7 +4,8 @@ const FILES = [
   "./index.html",
   "./style.css",
   "./app.js",
-  "./manifest.json"
+  "./manifest.json",
+  "./icons/willpaint-icon.svg"
 ];
 
 self.addEventListener("install", (event) => {

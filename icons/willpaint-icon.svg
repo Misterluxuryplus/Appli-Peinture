@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#163c43"/>
+  <path d="M118 354h276v44H118z" fill="#c57b47"/>
+  <path d="M144 144h224c28 0 52 24 52 52v10c0 28-24 52-52 52H144c-28 0-52-24-52-52v-10c0-28 24-52 52-52z" fill="#ffffff"/>
+  <path d="M152 178h208c10 0 18 8 18 18v10c0 10-8 18-18 18H152c-10 0-18-8-18-18v-10c0-10 8-18 18-18z" fill="#e9f1ef"/>
+  <path d="M190 286h132v44H190z" fill="#ffffff"/>
+  <path d="M222 330h68v102h-68z" fill="#ffffff"/>
+  <text x="256" y="111" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="800" fill="#ffffff">WP</text>
+</svg>

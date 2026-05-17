@@ -2,10 +2,16 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#163c43">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Will'Paint">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>Will'Paint - Devis peinture</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
@@ -86,15 +92,15 @@
                   </label>
                   <label>
                     Surface murs en m²
-                    <input id="wallSurface" name="wallSurface" type="number" min="0" step="0.01" value="0">
+                    <input id="wallSurface" name="wallSurface" type="number" inputmode="decimal" min="0" step="0.01" value="0">
                   </label>
                   <label>
                     Surface plafond en m²
-                    <input id="ceilingSurface" name="ceilingSurface" type="number" min="0" step="0.01" value="0">
+                    <input id="ceilingSurface" name="ceilingSurface" type="number" inputmode="decimal" min="0" step="0.01" value="0">
                   </label>
                   <label>
                     Nombre de couches
-                    <input id="coatCount" name="coatCount" type="number" min="1" step="1" value="2">
+                    <input id="coatCount" name="coatCount" type="number" inputmode="numeric" min="1" step="1" value="2">
                   </label>
                   <label>
                     État du support
@@ -283,9 +289,9 @@
           <input class="line-description" list="serviceSuggestions" value="Peinture murs">
           <textarea class="line-note" rows="2" placeholder="Texte libre, remarque ou condition particulière"></textarea>
         </td>
-        <td><input class="line-quantity" type="number" min="0" step="0.01" value="1"></td>
+        <td><input class="line-quantity" type="number" inputmode="decimal" min="0" step="0.01" value="1"></td>
         <td><input class="line-unit" value="m²"></td>
-        <td><input class="line-price" type="number" min="0" step="0.01" value="0"></td>
+        <td><input class="line-price" type="number" inputmode="decimal" min="0" step="0.01" value="0"></td>
         <td class="line-total">0,00 €</td>
         <td><button class="icon-button remove-line" type="button" title="Supprimer la ligne">×</button></td>
       </tr>

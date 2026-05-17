@@ -16,6 +16,19 @@ Autre méthode :
 1. Ouvrir le dossier `C:\Users\sylva\Documents\Appli peinture`.
 2. Double-cliquer sur `index.html`.
 
+## Utilisation sur téléphone
+
+L'interface est pensée mobile first :
+
+- gros boutons tactiles
+- formulaire en une colonne
+- champs lisibles
+- clavier numérique pour les surfaces et prix
+- prestations affichées en cartes sur petit écran
+- photos chantier ajoutables depuis la galerie ou l'appareil photo
+
+Pour une utilisation sur Android ou iPhone, il faudra placer ces fichiers sur un petit hébergement local ou web sécurisé. La base PWA est déjà préparée avec `manifest.json` et `sw.js`, mais l'installation sur écran d'accueil fonctionne mieux depuis une adresse `https://` ou un serveur local adapté.
+
 ## Informations entreprise
 
 Les informations Will'Paint sont enregistrées dans `Paramètres entreprise` et réutilisées automatiquement sur tous les devis :
