@@ -488,6 +488,35 @@ textarea:focus {
   margin-bottom: 8px;
 }
 
+.details-toggle,
+.mobile-details-toggle {
+  min-height: 40px;
+  width: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--primary);
+  background: #fff;
+  font-size: 0.9rem;
+  justify-self: start;
+}
+
+.line-details-panel,
+.mobile-details-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.line-details-panel[hidden],
+.mobile-details-panel[hidden] {
+  display: none;
+}
+
 .line-included-options,
 .mobile-included-options {
   display: grid;
@@ -514,6 +543,10 @@ textarea:focus {
 
 .included-option span {
   min-width: 0;
+}
+
+.mobile-line-card .mobile-details-toggle {
+  width: 100%;
 }
 
 .line-table td:first-child {

@@ -306,6 +306,7 @@ function addLine(line) {
   row.querySelector(".line-price").value = line.unitPrice || 0;
   row.querySelector(".line-note").value = line.note || "";
   renderIncludedOptions(row.querySelector(".line-included-options"), line.includedOptions || []);
+  setupDetailsToggle(row);
   if (row.dataset.kind === "text") {
     row.querySelector(".line-quantity").value = 0;
     row.querySelector(".line-unit").value = "";
@@ -317,8 +318,13 @@ function addLine(line) {
     calculateAndRender();
     saveCurrentQuietly();
   });
-  row.querySelectorAll("input, textarea").forEach((input) => {
+  row.querySelectorAll("input, textarea, .line-unit").forEach((input) => {
     input.addEventListener("input", () => {
+      renderMobileLineCards();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+    input.addEventListener("change", () => {
       renderMobileLineCards();
       calculateAndRender();
       saveCurrentQuietly();
@@ -333,6 +339,16 @@ function addLine(line) {
   });
   linesBody.appendChild(row);
   renderMobileLineCards();
+}
+
+function setupDetailsToggle(row) {
+  const button = row.querySelector(".details-toggle");
+  const panel = row.querySelector(".line-details-panel");
+  button.addEventListener("click", () => {
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    button.textContent = willOpen ? "Masquer détails" : "+ Détails";
+  });
 }
 
 function setupDesktopServiceSelect(row, selectedValue) {
@@ -394,10 +410,7 @@ function renderMobileLineCards() {
         <label>Désignation
           <input class="mobile-description" value="${escapeAttribute(row.querySelector(".line-description").value)}">
         </label>
-        <label>Observations / précisions
-          <textarea class="mobile-note" rows="3" placeholder="Support abîmé, peinture fournie par le client, réserve technique...">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
-        </label>
-        <div class="mobile-included-options">${includedOptionsHtml(selectedOptions)}</div>
+        ${mobileDetailsPanel(row, selectedOptions)}
       `;
     } else {
       card.innerHTML = `
@@ -417,13 +430,10 @@ function renderMobileLineCards() {
           </label>
         </div>
         <label>Unité
-          <input class="mobile-unit" value="${escapeAttribute(row.querySelector(".line-unit").value)}">
+          <select class="mobile-unit">${unitOptionsHtml(row.querySelector(".line-unit").value)}</select>
         </label>
-        <label>Observations / précisions
-          <textarea class="mobile-note" rows="2" placeholder="Support abîmé, peinture fournie par le client, réserve technique...">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
-        </label>
-        <div class="mobile-included-options">${includedOptionsHtml(selectedOptions)}</div>
         <div class="mobile-line-total"><span>Total</span><strong>${row.querySelector(".line-total").textContent}</strong></div>
+        ${mobileDetailsPanel(row, selectedOptions)}
       `;
     }
 
@@ -442,8 +452,21 @@ function renderMobileLineCards() {
       saveCurrentQuietly();
     });
 
-    card.querySelectorAll("input, textarea").forEach((input) => {
+    card.querySelector(".mobile-details-toggle").addEventListener("click", () => {
+      const panel = card.querySelector(".mobile-details-panel");
+      const willOpen = panel.hidden;
+      panel.hidden = !willOpen;
+      card.querySelector(".mobile-details-toggle").textContent = willOpen ? "Masquer détails" : "+ Détails";
+    });
+
+    card.querySelectorAll("input, textarea, .mobile-unit").forEach((input) => {
       input.addEventListener("input", () => {
+        updateDesktopLineFromMobileCard(row, card);
+        calculateAndRender();
+        updateMobileCardTotal(row, card);
+        saveCurrentQuietly();
+      });
+      input.addEventListener("change", () => {
         updateDesktopLineFromMobileCard(row, card);
         calculateAndRender();
         updateMobileCardTotal(row, card);
@@ -473,6 +496,24 @@ function updateDesktopLineFromMobileCard(row, card) {
   row.querySelector(".line-quantity").value = card.querySelector(".mobile-quantity")?.value || 0;
   row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "";
   row.querySelector(".line-price").value = card.querySelector(".mobile-price")?.value || 0;
+}
+
+function mobileDetailsPanel(row, selectedOptions) {
+  return `
+    <button class="mobile-details-toggle" type="button">+ Détails</button>
+    <div class="mobile-details-panel" hidden>
+      <div class="mobile-included-options">${includedOptionsHtml(selectedOptions)}</div>
+      <label>Observations / précisions
+        <textarea class="mobile-note" rows="2" placeholder="Support abîmé, peinture fournie par le client, réserve technique...">${escapeHtml(row.querySelector(".line-note").value)}</textarea>
+      </label>
+    </div>
+  `;
+}
+
+function unitOptionsHtml(selectedUnit) {
+  return ["forfait", "m²", "heure", "jour"].map((unit) => {
+    return `<option value="${escapeAttribute(unit)}"${unit === selectedUnit ? " selected" : ""}>${escapeHtml(unit)}</option>`;
+  }).join("");
 }
 
 function updateMobileCardTotal(row, card) {
