@@ -66,9 +66,7 @@ function init() {
   refreshHistory();
   calculateAndRender();
 
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
+  disableServiceWorkerCache();
 }
 
 function bindEvents() {
@@ -114,6 +112,13 @@ function bindEvents() {
   document.querySelector("#saveCompanyBtn").addEventListener("click", saveCompanySettings);
   document.querySelector("#resetCompanyBtn").addEventListener("click", resetCompanySettings);
   document.querySelector("#companyLogo").addEventListener("change", handleCompanyLogo);
+}
+
+function disableServiceWorkerCache() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+    .catch(() => {});
 }
 
 function showView(viewId) {

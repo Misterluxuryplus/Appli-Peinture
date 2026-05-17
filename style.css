@@ -113,6 +113,13 @@ h3 {
   text-transform: uppercase;
 }
 
+.app-version {
+  margin: 6px 0 0;
+  color: #d8e5e3;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .eyebrow.dark {
   color: var(--primary-2);
 }
@@ -351,6 +358,10 @@ textarea:focus {
   content: "";
 }
 
+.line-table td:last-child {
+  text-align: right;
+}
+
 .line-table th {
   color: #46555c;
   background: var(--surface-soft);
@@ -395,16 +406,20 @@ textarea:focus {
   line-height: 1;
 }
 
-.danger-button {
-  min-height: 48px;
-  width: 100%;
-  border-radius: 8px;
-  padding: 0 14px;
+.remove-cross {
+  justify-self: end;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  padding: 0;
   color: #fff;
   background: var(--danger);
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
-.danger-button:hover {
+.remove-cross:hover {
   background: #842f2f;
 }
 

@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.1">
   </head>
   <body>
     <header class="app-header">
@@ -21,6 +21,7 @@
         <div>
           <p class="eyebrow">Application locale de devis</p>
           <h1>Will'Paint</h1>
+          <p class="app-version">Version 1.1</p>
         </div>
       </div>
       <nav class="top-nav" aria-label="Navigation principale">
@@ -293,10 +294,10 @@
         <td><input class="line-unit" value="m²"></td>
         <td><input class="line-price" type="number" inputmode="decimal" min="0" step="0.01" value="0"></td>
         <td class="line-total">0,00 €</td>
-        <td><button class="remove-line danger-button" type="button" title="Supprimer la ligne">Supprimer la ligne</button></td>
+        <td><button class="remove-line remove-cross" type="button" title="Supprimer la ligne" aria-label="Supprimer la ligne">✕</button></td>
       </tr>
     </template>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=1.1"></script>
   </body>
 </html>
