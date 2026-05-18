@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#163c43">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Will'Paint">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>Will'Paint - Devis peinture</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
+    <link rel="stylesheet" href="style.css?v=1.8">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-lockup">
+        <div class="brand-mark" id="headerLogo">WP</div>
+        <div>
+          <p class="eyebrow">Application locale de devis</p>
+          <h1>Will'Paint</h1>
+          <p class="app-version">Version 1.8</p>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="Navigation principale">
+        <button class="nav-button active" type="button" data-view="quoteView">Devis</button>
+        <button class="nav-button" type="button" data-view="historyView">Historique</button>
+        <button class="nav-button" type="button" data-view="settingsView">Paramètres entreprise</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="quoteView" class="view active-view">
+        <div class="workspace">
+          <section class="panel form-panel" aria-label="Création du devis">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow dark">Création devis</p>
+                <h2>Nouveau devis client</h2>
+              </div>
+              <button class="secondary" id="newQuoteBtn" type="button">Nouveau devis</button>
+            </div>
+
+            <div class="mobile-stepper" aria-label="Navigation des étapes du devis">
+              <div class="step-indicator">
+                <span id="stepCounter">Étape 1/5</span>
+                <strong id="stepTitle">Client</strong>
+              </div>
+              <div class="step-dots" aria-hidden="true">
+                <span class="step-dot active"></span>
+                <span class="step-dot"></span>
+                <span class="step-dot"></span>
+                <span class="step-dot"></span>
+                <span class="step-dot"></span>
+              </div>
+            </div>
+
+            <form id="quoteForm">
+              <input id="documentId" name="documentId" type="hidden">
+              <section class="form-section" data-mobile-step="1">
+                <div class="section-title">
+                  <span>1</span>
+                  <h3>Client</h3>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Nom client
+                    <input id="clientName" name="clientName" autocomplete="name" required>
+                  </label>
+                  <label>
+                    Téléphone client
+                    <input id="clientPhone" name="clientPhone" autocomplete="tel">
+                  </label>
+                  <label>
+                    Email client
+                    <input id="clientEmail" name="clientEmail" type="email" autocomplete="email">
+                  </label>
+                  <label>
+                    Date du devis
+                    <input id="quoteDate" name="quoteDate" type="date" required>
+                  </label>
+                  <label>
+                    Validité du devis jusqu'au
+                    <input id="quoteValidityDate" name="quoteValidityDate" type="date">
+                  </label>
+                  <label>
+                    Numéro document
+                    <input id="quoteNumber" name="quoteNumber" readonly>
+                  </label>
+                  <label class="wide">
+                    Adresse client
+                    <textarea id="clientAddress" name="clientAddress" rows="2" autocomplete="street-address"></textarea>
+                  </label>
+                </div>
+              </section>
+
+              <section class="form-section" data-mobile-step="2">
+                <div class="section-title">
+                  <span>2</span>
+                  <h3>Chantier</h3>
+                </div>
+                <div class="form-grid">
+                  <label class="wide">
+                    Adresse chantier
+                    <textarea id="siteAddress" name="siteAddress" rows="2"></textarea>
+                  </label>
+                  <label>
+                    Type de pièce
+                    <select id="roomType" name="roomType">
+                      <option value="">Choisir une pièce</option>
+                      <option>Salon</option>
+                      <option>Salle à manger</option>
+                      <option>Chambre</option>
+                      <option>Cuisine</option>
+                      <option>Salle de bain</option>
+                      <option>WC</option>
+                      <option>Couloir</option>
+                      <option>Entrée</option>
+                      <option>Bureau</option>
+                      <option>Escalier</option>
+                      <option>Garage</option>
+                      <option>Cave</option>
+                      <option>Buanderie</option>
+                      <option>Extérieur</option>
+                      <option>Autre / Libre</option>
+                    </select>
+                  </label>
+                  <label id="roomTypeCustomWrap" class="hidden-field">
+                    Type de pièce personnalisé
+                    <input id="roomTypeCustom" name="roomTypeCustom" placeholder="Ex : atelier, véranda, local technique">
+                  </label>
+                  <label>
+                    Surface murs en m²
+                    <input id="wallSurface" name="wallSurface" type="number" inputmode="decimal" min="0" step="0.01" value="0">
+                  </label>
+                  <label>
+                    Surface plafond en m²
+                    <input id="ceilingSurface" name="ceilingSurface" type="number" inputmode="decimal" min="0" step="0.01" value="0">
+                  </label>
+                  <label>
+                    Nombre de couches
+                    <input id="coatCount" name="coatCount" type="number" inputmode="numeric" min="1" step="1" value="2">
+                  </label>
+                  <label>
+                    État du support
+                    <select id="supportState" name="supportState">
+                      <option>Bon</option>
+                      <option>Moyen</option>
+                      <option>Mauvais</option>
+                    </select>
+                  </label>
+                  <label>
+                    Préparation nécessaire
+                    <select id="prepNeeded" name="prepNeeded">
+                      <option>Oui</option>
+                      <option>Non</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="form-section" data-mobile-step="3">
+                <div class="section-title">
+                  <span>3</span>
+                  <h3>Prestations</h3>
+                </div>
+                <div class="service-picker" aria-label="Ajouter une prestation">
+                  <select id="serviceSelect" aria-label="Choisir une prestation"></select>
+                  <button id="addSelectedServiceBtn" class="secondary" type="button">Ajouter</button>
+                </div>
+                <div class="table-wrap">
+                  <table class="line-table" aria-label="Tableau de prestations">
+                    <thead>
+                      <tr>
+                        <th>Désignation</th>
+                        <th>Qté</th>
+                        <th>Unité</th>
+                        <th>Prix HT</th>
+                        <th>Total HT</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="linesBody"></tbody>
+                  </table>
+                </div>
+                <div id="mobileLinesBody" class="mobile-lines" aria-label="Prestations en cartes mobiles"></div>
+              </section>
+
+              <section class="form-section" data-mobile-step="4">
+                <div class="section-title">
+                  <span>4</span>
+                  <h3>Photos chantier</h3>
+                </div>
+                <div class="photo-uploader">
+                  <label class="upload-button">
+                    📸 Ajouter photo
+                    <input id="photoInput" type="file" accept="image/*" capture="environment">
+                  </label>
+                  <p>Les photos sont intégrées à l'aperçu du devis et sauvegardées avec le devis courant.</p>
+                </div>
+                <div id="photoGrid" class="photo-grid" aria-live="polite"></div>
+              </section>
+
+              <section class="form-section" data-mobile-step="5">
+                <div class="section-title">
+                  <span>5</span>
+                  <h3>Résumé / PDF</h3>
+                </div>
+                <div class="totals-editor">
+                  <label>
+                    TVA
+                    <select id="vatRate" name="vatRate">
+                      <option value="0.212" selected>21,20 %</option>
+                      <option value="0.20">20 %</option>
+                      <option value="0.10">10 %</option>
+                      <option value="0">0 %</option>
+                    </select>
+                  </label>
+                  <div class="total-box">
+                    <span>Total HT</span>
+                    <strong id="totalHt">0,00 €</strong>
+                  </div>
+                  <div class="total-box">
+                    <span>TVA</span>
+                    <strong id="totalVat">0,00 €</strong>
+                  </div>
+                  <div class="total-box grand-total">
+                    <span>Total TTC</span>
+                    <strong id="totalTtc">0,00 €</strong>
+                  </div>
+                </div>
+                <label class="wide">
+                  Observations / précisions du devis
+                  <textarea id="quoteObservations" name="quoteObservations" rows="3" placeholder="Exemple : travaux sous réserve de support sain, déplacement mobilier lourd non compris..."></textarea>
+                </label>
+                <input id="documentType" name="documentType" type="hidden" value="devis">
+                <label>
+                  État du devis
+                  <select id="documentStatus" name="documentStatus">
+                    <option value="en_attente" selected>🟡 En attente client</option>
+                    <option value="accepte">🟢 Accepté</option>
+                    <option value="planifie">🔵 Planifié</option>
+                    <option value="en_cours">🟠 En cours</option>
+                    <option value="termine">✅ Terminé</option>
+                    <option value="refuse">🔴 Refusé</option>
+                    <option value="brouillon" disabled>Brouillon</option>
+                    <option value="validé" disabled>Validé</option>
+                    <option value="payé" disabled>Payé</option>
+                    <option value="annulé" disabled>Annulé</option>
+                  </select>
+                </label>
+                <div class="status-panel">
+                  <span>Statut</span>
+                  <strong id="statusDisplay">Brouillon</strong>
+                </div>
+                <label class="wide">
+                  Conditions
+                  <textarea id="conditions" name="conditions" rows="4">Devis valable 30 jours. Acompte de 30 % à la commande. Solde à la réception des travaux.</textarea>
+                </label>
+              </section>
+            </form>
+
+            <div class="mobile-step-actions">
+              <button id="prevStepBtn" class="secondary" type="button">Précédent</button>
+              <button id="nextStepBtn" class="primary" type="button">Suivant</button>
+            </div>
+          </section>
+
+          <aside class="panel preview-panel" data-mobile-step="5" aria-label="Aperçu du devis">
+            <div class="preview-toolbar">
+              <button id="saveQuoteBtn" class="secondary" type="button">Enregistrer en brouillon</button>
+              <button id="validateOfficialBtn" class="primary" type="button">Valider officiellement</button>
+              <button id="markPaidBtn" class="primary hidden-field" type="button">Marquer comme payé</button>
+              <button id="cancelDocumentBtn" class="secondary hidden-field" type="button">Annuler document</button>
+              <button id="pdfBtn" class="primary" type="button">Générer PDF</button>
+              <button id="mailBtn" class="secondary" type="button">Envoyer au client</button>
+              <button id="libreOfficeBtn" class="secondary" type="button">LibreOffice</button>
+              <button id="jsonBtn" class="secondary" type="button">JSON</button>
+              <button id="csvBtn" class="secondary" type="button">CSV</button>
+            </div>
+            <article id="quotePreview" class="quote-document"></article>
+          </aside>
+        </div>
+      </section>
+
+      <section id="historyView" class="view">
+        <div class="single-column">
+          <section class="panel page-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow dark">Sauvegarde locale</p>
+                <h2>Historique des devis et factures</h2>
+              </div>
+              <div class="history-tools">
+                <button id="exportBackupBtn" class="secondary" type="button">Exporter sauvegarde</button>
+                <label class="secondary import-backup-button">
+                  Importer sauvegarde
+                  <input id="importBackupInput" type="file" accept="application/json,.json">
+                </label>
+                <button id="clearCurrentBtn" class="secondary" type="button">Vider le devis courant</button>
+              </div>
+            </div>
+            <p class="backup-warning">Attention : les données sont enregistrées sur cet appareil. Pensez à exporter une sauvegarde régulièrement pour ne rien perdre.</p>
+            <p class="backup-help">Pour transférer la sauvegarde du téléphone vers l’ordinateur : exportez le fichier JSON, puis envoyez-le par email, Google Drive, iCloud Drive, câble USB, Bluetooth, AirDrop ou WhatsApp selon votre appareil.</p>
+            <div id="historyList" class="history-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="settingsView" class="view">
+        <div class="single-column">
+          <section class="panel page-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow dark">Paramètres</p>
+                <h2>Informations entreprise</h2>
+              </div>
+              <button id="resetCompanyBtn" class="secondary" type="button">Réinitialiser Will'Paint</button>
+            </div>
+            <form id="companyForm" class="form-grid">
+              <label>
+                Nom entreprise
+                <input id="companyName" name="companyName" required>
+              </label>
+              <label>
+                Activité
+                <input id="companySubtitle" name="companySubtitle">
+              </label>
+              <label>
+                SIRET
+                <input id="companySiret" name="companySiret">
+              </label>
+              <label>
+                Téléphone
+                <input id="companyPhone" name="companyPhone">
+              </label>
+              <label>
+                Email
+                <input id="companyEmail" name="companyEmail" type="email">
+              </label>
+              <label class="wide">
+                Adresse entreprise
+                <textarea id="companyAddress" name="companyAddress" rows="3"></textarea>
+              </label>
+              <label class="wide">
+                Logo entreprise
+                <input id="companyLogo" name="companyLogo" type="file" accept="image/*">
+              </label>
+              <div class="form-actions wide">
+                <button id="saveCompanyBtn" class="primary" type="button">Enregistrer paramètres</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mobile-version">Version 1.8 - Historique devis<br><span>Version actuelle : 1.8</span></footer>
+
+    <template id="lineTemplate">
+      <tr>
+        <td>
+          <input class="line-description" value="">
+        </td>
+        <td>
+          <input class="line-quantity" type="text" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Quantité">
+          <small class="quantity-message" aria-live="polite"></small>
+        </td>
+        <td>
+          <select class="line-unit">
+            <option value="forfait" selected>forfait</option>
+            <option value="m²">m²</option>
+            <option value="heure">heure</option>
+            <option value="jour">jour</option>
+          </select>
+        </td>
+        <td><input class="line-price" type="number" inputmode="decimal" min="0" step="0.01" value="0"></td>
+        <td class="line-total">0,00 €</td>
+        <td><button class="remove-line remove-cross" type="button" title="Supprimer la ligne" aria-label="Supprimer la ligne">✕</button></td>
+      </tr>
+    </template>
+
+    <script src="app.js?v=1.8"></script>
+  </body>
+</html>

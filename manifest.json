@@ -1,0 +1,21 @@
+{
+  "name": "Will'Paint - Devis peinture",
+  "short_name": "Will'Paint",
+  "id": "willpaint-devis",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f0",
+  "theme_color": "#163c43",
+  "orientation": "portrait-primary",
+  "description": "Application locale pour créer des devis de peinture.",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icons/willpaint-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
