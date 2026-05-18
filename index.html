@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css?v=2.1-official-draft">
+    <link rel="stylesheet" href="style.css?v=2.2-draft-invoice">
   </head>
   <body>
     <header class="app-header">
@@ -21,7 +21,7 @@
         <div>
           <p class="eyebrow">Application locale de devis</p>
           <h1>Will'Paint</h1>
-          <p class="app-version">Version 2.1</p>
+          <p class="app-version">Version 2.2</p>
         </div>
       </div>
       <nav class="top-nav" aria-label="Navigation principale">
@@ -58,6 +58,7 @@
             </div>
 
             <form id="quoteForm">
+              <input id="documentId" name="documentId" type="hidden">
               <section class="form-section" data-mobile-step="1">
                 <div class="section-title">
                   <span>1</span>
@@ -230,14 +231,17 @@
                   Observations / précisions du devis
                   <textarea id="quoteObservations" name="quoteObservations" rows="3" placeholder="Exemple : travaux sous réserve de support sain, déplacement mobilier lourd non compris..."></textarea>
                 </label>
+                <input id="documentType" name="documentType" type="hidden" value="devis">
                 <label>
-                  Type de document
-                  <select id="documentType" name="documentType">
-                    <option value="devis">Devis</option>
-                    <option value="facture">Facture</option>
+                  État du devis
+                  <select id="documentStatus" name="documentStatus">
+                    <option value="brouillon">Brouillon</option>
+                    <option value="en_attente">En attente client</option>
+                    <option value="validé" disabled>Validé</option>
+                    <option value="payé" disabled>Payé</option>
+                    <option value="annulé" disabled>Annulé</option>
                   </select>
                 </label>
-                <input id="documentStatus" name="documentStatus" type="hidden" value="brouillon">
                 <div class="status-panel">
                   <span>Statut</span>
                   <strong id="statusDisplay">Brouillon</strong>
@@ -257,9 +261,9 @@
 
           <aside class="panel preview-panel" data-mobile-step="5" aria-label="Aperçu du devis">
             <div class="preview-toolbar">
-              <button id="saveQuoteBtn" class="secondary" type="button">Sauvegarder brouillon</button>
+              <button id="saveQuoteBtn" class="secondary" type="button">Enregistrer en brouillon</button>
               <button id="validateOfficialBtn" class="primary" type="button">Valider officiellement</button>
-              <button id="markPaidBtn" class="primary hidden-field" type="button">Payé</button>
+              <button id="markPaidBtn" class="primary hidden-field" type="button">Marquer comme payé</button>
               <button id="cancelDocumentBtn" class="secondary hidden-field" type="button">Annuler document</button>
               <button id="pdfBtn" class="primary" type="button">Générer PDF</button>
               <button id="mailBtn" class="secondary" type="button">Envoyer au client</button>
@@ -340,7 +344,7 @@
       </section>
     </main>
 
-    <footer class="mobile-version">Version 2.1 - Brouillon officiel simplifié</footer>
+    <footer class="mobile-version">Version 2.2 - Devis vers facture</footer>
 
     <template id="lineTemplate">
       <tr>
@@ -362,6 +366,6 @@
       </tr>
     </template>
 
-    <script src="app.js?v=2.1-official-draft"></script>
+    <script src="app.js?v=2.2-draft-invoice"></script>
   </body>
 </html>

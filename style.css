@@ -296,22 +296,30 @@ label {
   display: none !important;
 }
 
-.test-mode-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  color: var(--ink);
+.status-panel {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
 }
 
-.test-mode-toggle input {
-  width: 22px;
-  min-height: 22px;
+.status-panel span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 800;
 }
 
-.test-mode-banner,
-.doc-mode-banner,
+.status-panel strong {
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+
 .doc-draft-banner,
+.doc-paid-banner,
+.doc-cancelled-banner,
+.doc-official-banner,
 .backup-warning,
 .backup-help {
   border-radius: 8px;
@@ -319,15 +327,28 @@ label {
   font-weight: 800;
 }
 
-.test-mode-banner,
-.doc-mode-banner {
-  grid-column: 1 / -1;
+.doc-draft-banner {
+  margin-bottom: 18px;
   color: #7a2f14;
   background: #fff0e6;
   border: 1px solid #e5b58f;
 }
 
-.doc-draft-banner {
+.doc-paid-banner {
+  margin-bottom: 18px;
+  color: #155c42;
+  background: #e7f6ef;
+  border: 1px solid #9fcdb8;
+}
+
+.doc-cancelled-banner {
+  margin-bottom: 18px;
+  color: #842f2f;
+  background: #fdecec;
+  border: 1px solid #e3a4a4;
+}
+
+.doc-official-banner {
   margin-bottom: 18px;
   color: #46555c;
   background: #f4f6f5;

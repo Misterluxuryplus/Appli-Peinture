@@ -1,4 +1,4 @@
-const CACHE_NAME = "willpaint-disabled-v1.9-draft-test";
+const CACHE_NAME = "willpaint-disabled-v2.2-draft-invoice";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

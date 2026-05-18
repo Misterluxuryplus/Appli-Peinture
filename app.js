@@ -3,7 +3,8 @@ const STORAGE = {
   current: "willpaint.currentQuote",
   history: "willpaint.history",
   counter: "willpaint.counter",
-  counters: "willpaint.counters"
+  counters: "willpaint.counters",
+  draftCounter: "willpaint.draftCounter"
 };
 
 const DEFAULT_COMPANY = {
@@ -58,14 +59,15 @@ const ROOM_TYPES = [
 ];
 
 const quoteFields = [
+  "documentId",
   "clientName",
   "clientPhone",
   "clientEmail",
   "clientAddress",
   "quoteDate",
   "quoteNumber",
+  "documentType",
   "documentStatus",
-  "testMode",
   "siteAddress",
   "roomType",
   "roomTypeCustom",
@@ -138,11 +140,16 @@ function bindEvents() {
   document.querySelector("#jsonBtn").addEventListener("click", exportJson);
   document.querySelector("#csvBtn").addEventListener("click", exportCsv);
   document.querySelector("#photoInput").addEventListener("change", handlePhotoInput);
-  document.querySelector("#documentStatus").addEventListener("change", updateDocumentNumberForStatus);
-  document.querySelector("#testMode").addEventListener("change", updateTestModeBanner);
+  document.querySelector("#documentType").addEventListener("change", updateDocumentNumberForStatus);
+  document.querySelector("#documentStatus").addEventListener("change", () => {
+    calculateAndRender();
+    saveCurrentQuietly();
+  });
   document.querySelector("#roomType").addEventListener("change", updateRoomTypeCustomVisibility);
   addSelectedServiceBtn.addEventListener("click", addSelectedService);
   document.querySelector("#validateOfficialBtn").addEventListener("click", validateOfficialDocument);
+  document.querySelector("#markPaidBtn").addEventListener("click", markInvoicePaid);
+  document.querySelector("#cancelDocumentBtn").addEventListener("click", cancelOfficialDocument);
   document.querySelector("#exportBackupBtn").addEventListener("click", exportBackup);
   document.querySelector("#importBackupInput").addEventListener("change", importBackup);
   document.querySelector("#saveCompanyBtn").addEventListener("click", saveCompanySettings);
@@ -280,7 +287,7 @@ function renderHeaderLogo(company) {
 
 function startQuote(savedQuote) {
   const quote = savedQuote || createBlankQuote();
-  quote.documentStatus = quote.documentStatus || (documentKindFromNumber(quote.quoteNumber) === "FAC" ? "facture" : "devis");
+  normalizeDocumentState(quote);
   quote.roomTypeCustom = quote.roomTypeCustom || "";
   preserveCustomRoomType(quote);
   quoteFields.forEach((id) => {
@@ -290,7 +297,7 @@ function startQuote(savedQuote) {
     else field.value = quote[id];
   });
   updateRoomTypeCustomVisibility();
-  updateTestModeBanner();
+  updateDocumentUi();
   currentPhotos = quote.photos || [];
   linesBody.innerHTML = "";
   (quote.lines || []).forEach(addLine);
@@ -302,9 +309,10 @@ function startQuote(savedQuote) {
 function createBlankQuote() {
   return {
     quoteDate: new Date().toISOString().slice(0, 10),
-    quoteNumber: "BROUILLON",
-    documentStatus: "devis",
-    testMode: false,
+    documentId: createDraftId(),
+    quoteNumber: "DEVIS BROUILLON",
+    documentType: "devis",
+    documentStatus: "brouillon",
     isOfficial: false,
     clientName: "",
     clientPhone: "",
@@ -332,6 +340,46 @@ function preserveCustomRoomType(quote) {
   quote.roomType = "Autre / Libre";
 }
 
+function normalizeDocumentState(quote) {
+  const state = normalizedDocumentState(quote);
+  quote.documentType = state.documentType;
+  quote.documentStatus = state.documentStatus;
+  quote.documentKind = documentKindFromType(state.documentType);
+  quote.documentTitle = documentTitle(quote);
+  quote.isOfficial = state.documentStatus !== "brouillon" && isOfficialNumber(quote.quoteNumber);
+  if (!quote.documentId) quote.documentId = createDraftId();
+  if (!quote.quoteNumber || !isOfficialNumber(quote.quoteNumber)) quote.quoteNumber = "DEVIS BROUILLON";
+}
+
+function normalizedDocumentState(quote) {
+  const rawStatus = quote.documentStatus || "";
+  const rawType = quote.documentType || "";
+  const kind = documentKindFromNumber(quote.quoteNumber);
+  let documentType = rawType || (kind === "FAC" ? "facture" : "devis");
+  let documentStatus = rawStatus || "brouillon";
+
+  if (rawStatus === "devis" || rawStatus === "facture") {
+    documentType = rawStatus;
+    documentStatus = isOfficialNumber(quote.quoteNumber) || quote.isOfficial ? "validé" : "brouillon";
+  }
+
+  if (rawStatus === "payé") {
+    documentType = "facture";
+    documentStatus = "payé";
+  }
+
+  if (rawStatus === "annulé") {
+    documentType = rawType || (kind === "FAC" ? "facture" : "devis");
+    documentStatus = "annulé";
+  }
+
+  if (!["devis", "facture"].includes(documentType)) documentType = kind === "FAC" ? "facture" : "devis";
+  if (!["brouillon", "en_attente", "validé", "payé", "annulé"].includes(documentStatus)) documentStatus = "brouillon";
+  if (documentType === "devis" && documentStatus === "payé") documentStatus = "validé";
+
+  return { documentType, documentStatus };
+}
+
 function updateRoomTypeCustomVisibility() {
   const customWrap = document.querySelector("#roomTypeCustomWrap");
   const customInput = document.querySelector("#roomTypeCustom");
@@ -344,19 +392,24 @@ function updateDocumentNumberForStatus() {
   const numberInput = document.querySelector("#quoteNumber");
   const currentNumber = numberInput.value.trim();
   if (!isOfficialNumber(currentNumber)) {
-    numberInput.value = document.querySelector("#testMode").checked ? "TEST - BROUILLON" : "BROUILLON";
+    numberInput.value = "DEVIS BROUILLON";
   }
+  calculateAndRender();
+  saveCurrentQuietly();
 }
 
-function updateTestModeBanner() {
-  const isTest = document.querySelector("#testMode").checked;
-  document.querySelector("#testModeBanner").classList.toggle("hidden-field", !isTest);
-  if (isTest && !String(document.querySelector("#quoteNumber").value).startsWith("TEST-")) {
-    document.querySelector("#quoteNumber").value = "TEST - BROUILLON";
-  }
-  if (!isTest && !isOfficialNumber(document.querySelector("#quoteNumber").value)) {
-    document.querySelector("#quoteNumber").value = "BROUILLON";
-  }
+function updateDocumentUi() {
+  const quote = collectQuote();
+  const isInvoice = quote.documentType === "facture";
+  const isValidatedInvoice = isInvoice && quote.documentStatus === "validé" && quote.isOfficial;
+
+  document.querySelector("#statusDisplay").textContent = statusLabel(quote.documentStatus);
+  document.querySelector("#saveQuoteBtn").classList.toggle("hidden-field", quote.isOfficial);
+  document.querySelector("#validateOfficialBtn").classList.toggle("hidden-field", !["brouillon", "en_attente"].includes(quote.documentStatus) || quote.isOfficial);
+  document.querySelector("#markPaidBtn").classList.toggle("hidden-field", !isValidatedInvoice);
+  document.querySelector("#cancelDocumentBtn").classList.toggle("hidden-field", quote.documentStatus !== "validé" || !quote.isOfficial);
+  document.querySelector("#documentType").disabled = quote.isOfficial;
+  document.querySelector("#documentStatus").disabled = quote.isOfficial;
 }
 
 function addLine(line) {
@@ -481,10 +534,9 @@ function collectQuote() {
 
   quote.company = loadCompany();
   quote.roomTypeLabel = displayRoomType(quote);
-  quote.documentKind = isOfficialNumber(quote.quoteNumber) ? documentKindFromNumber(quote.quoteNumber) : documentKindFromStatus(quote.documentStatus);
+  quote.documentKind = isOfficialNumber(quote.quoteNumber) ? documentKindFromNumber(quote.quoteNumber) : documentKindFromType(quote.documentType);
   quote.documentTitle = documentTitle(quote);
-  quote.isOfficial = isOfficialNumber(quote.quoteNumber) && !quote.testMode;
-  quote.isTest = Boolean(quote.testMode);
+  quote.isOfficial = isOfficialNumber(quote.quoteNumber) && quote.documentStatus !== "brouillon";
   quote.lines = getLineRows().map((row) => {
     const quantity = parseFloat(row.querySelector(".line-quantity").value) || 0;
     const unitPrice = parseFloat(row.querySelector(".line-price").value) || 0;
@@ -515,7 +567,11 @@ function displayRoomType(quote) {
 }
 
 function documentKindFromStatus(status) {
-  return ["facture", "payé"].includes(status) ? "FAC" : "DEV";
+  return status === "payé" ? "FAC" : "DEV";
+}
+
+function documentKindFromType(type) {
+  return type === "facture" ? "FAC" : "DEV";
 }
 
 function documentKindFromNumber(number) {
@@ -524,26 +580,46 @@ function documentKindFromNumber(number) {
 }
 
 function documentTitle(quote) {
-  return (quote.documentKind || documentKindFromStatus(quote.documentStatus)) === "FAC" ? "FACTURE" : "DEVIS";
+  return (quote.documentKind || documentKindFromType(quote.documentType)) === "FAC" ? "FACTURE" : "DEVIS";
+}
+
+function documentStatusBanner(quote) {
+  if (quote.documentStatus === "en_attente") {
+    return `<div class="doc-draft-banner">DEVIS EN ATTENTE CLIENT / NON OFFICIEL</div>`;
+  }
+
+  if (!quote.isOfficial || quote.documentStatus === "brouillon") {
+    return `<div class="doc-draft-banner">DEVIS BROUILLON / NON OFFICIEL</div>`;
+  }
+
+  if (quote.documentStatus === "payé" && quote.documentTitle === "FACTURE") {
+    return `<div class="doc-paid-banner">FACTURE PAYÉE</div>`;
+  }
+
+  if (quote.documentStatus === "annulé") {
+    return `<div class="doc-cancelled-banner">${escapeHtml(quote.documentTitle)} ANNULÉ${quote.documentTitle === "FACTURE" ? "E" : ""}</div>`;
+  }
+
+  return `<div class="doc-official-banner">Statut : Validé</div>`;
 }
 
 function statusLabel(status) {
   const labels = {
-    devis: "Devis",
-    facture: "Facture",
+    brouillon: "Brouillon",
+    en_attente: "En attente client",
+    validé: "Validé",
     payé: "Payé",
     annulé: "Annulé"
   };
-  return labels[status] || "Devis";
+  return labels[status] || "Brouillon";
+}
+
+function typeLabel(type) {
+  return type === "facture" ? "Facture" : "Devis";
 }
 
 function isOfficialNumber(number) {
   return /^(DEV|FAC)-\d{4}-\d{4,}$/.test(String(number || ""));
-}
-
-function createTestNumber(kind) {
-  const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
-  return `TEST-${kind}-${stamp}`;
 }
 
 function calculateAndRender() {
@@ -553,6 +629,7 @@ function calculateAndRender() {
   document.querySelector("#totalTtc").textContent = euros.format(quote.totalTtc);
   updateAllMobileCardTotals();
   renderPreview(quote);
+  updateDocumentUi();
 }
 
 function updateAllMobileCardTotals() {
@@ -580,9 +657,7 @@ function renderPreview(quote) {
   const photos = quote.photos.length
     ? `<section class="doc-block"><h3>Photos chantier</h3><div class="doc-photo-grid">${quote.photos.map((photo) => `<img src="${photo.src}" alt="${escapeHtml(photo.caption || "Photo chantier")}">`).join("")}</div></section>`
     : "";
-  const modeBanner = quote.testMode
-    ? `<div class="doc-mode-banner">MODE TEST — document non officiel</div>`
-    : (!quote.isOfficial ? `<div class="doc-draft-banner">BROUILLON — document non validé officiellement</div>` : "");
+  const modeBanner = documentStatusBanner(quote);
 
   preview.innerHTML = `
     <div class="doc-header">
@@ -679,44 +754,65 @@ function renderPhotos() {
 
 function saveQuote() {
   const quote = collectQuote();
-  localStorage.setItem(STORAGE.current, JSON.stringify(quote));
-  alert("Brouillon sauvegardé sur cet appareil. Aucun numéro officiel n'a été utilisé.");
+  saveHistoryDocument(quote);
+  alert("Devis enregistré en brouillon dans l'historique. Aucun numéro officiel n'a été utilisé.");
 }
 
 function validateOfficialDocument() {
   let quote = collectQuote();
-  const kind = documentKindFromStatus(quote.documentStatus);
+  if (!["brouillon", "en_attente"].includes(quote.documentStatus) || quote.isOfficial) return;
+  if (!confirm("Le client accepte ce devis ? Voulez-vous le transformer en facture officielle ?")) return;
+  const kind = "FAC";
 
-  if (quote.testMode) {
-    document.querySelector("#quoteNumber").value = createTestNumber(kind);
-    quote = collectQuote();
-    quote.isOfficial = false;
-    quote.isTest = true;
-    saveHistoryDocument(quote);
-    if (confirm("Document enregistré en MODE TEST. Aucun numéro officiel n'a été utilisé. Voulez-vous télécharger le PDF de test ?")) generatePdf();
-    return;
-  }
-
-  if (!isOfficialNumber(quote.quoteNumber)) {
+  if (!isOfficialNumber(quote.quoteNumber) || documentKindFromNumber(quote.quoteNumber) !== "FAC") {
     document.querySelector("#quoteNumber").value = generateDocumentNumber(kind);
+    document.querySelector("#documentType").value = "facture";
+    document.querySelector("#documentStatus").value = "validé";
     quote = collectQuote();
   }
 
   quote.isOfficial = true;
-  quote.isTest = false;
   saveHistoryDocument(quote);
-  if (confirm(`${statusLabel(quote.documentStatus)} ${quote.quoteNumber} validé officiellement. Voulez-vous télécharger le PDF maintenant ?`)) {
+  updateDocumentUi();
+  calculateAndRender();
+  if (confirm(`Facture ${quote.quoteNumber} créée officiellement. Voulez-vous télécharger le PDF maintenant ?`)) {
     generatePdf();
   } else {
     alert("Pensez à exporter une sauvegarde régulièrement. Le PDF reste la vraie trace à conserver.");
   }
 }
 
+function markInvoicePaid() {
+  let quote = collectQuote();
+  if (quote.documentType !== "facture" || quote.documentStatus !== "validé" || !quote.isOfficial) return;
+  if (!confirm("Marquer cette facture comme payée ?")) return;
+  document.querySelector("#documentStatus").value = "payé";
+  quote = collectQuote();
+  saveHistoryDocument(quote);
+  calculateAndRender();
+  alert("Statut : Payé");
+}
+
+function cancelOfficialDocument() {
+  let quote = collectQuote();
+  if (quote.documentStatus !== "validé" || !quote.isOfficial) return;
+  if (!confirm(`Annuler ce ${typeLabel(quote.documentType).toLowerCase()} ?`)) return;
+  document.querySelector("#documentStatus").value = "annulé";
+  quote = collectQuote();
+  saveHistoryDocument(quote);
+  calculateAndRender();
+}
+
 function saveHistoryDocument(quote) {
   localStorage.setItem(STORAGE.current, JSON.stringify(quote));
   const history = readJson(STORAGE.history, []);
-  const existingIndex = history.findIndex((item) => item.quoteNumber === quote.quoteNumber);
+  const key = historyKey({ quote });
+  const existingIndex = history.findIndex((item) => {
+    const itemQuote = item.quote || item;
+    return historyKey(item) === key || (quote.documentId && itemQuote.documentId === quote.documentId);
+  });
   const summary = {
+    documentId: quote.documentId,
     quoteNumber: quote.quoteNumber,
     quoteDate: quote.quoteDate,
     clientName: quote.clientName,
@@ -724,7 +820,6 @@ function saveHistoryDocument(quote) {
     documentStatus: quote.documentStatus,
     documentKind: quote.documentKind,
     isOfficial: quote.isOfficial,
-    isTest: quote.isTest,
     savedAt: quote.savedAt,
     quote
   };
@@ -758,20 +853,21 @@ function clearCurrentQuote() {
 }
 
 function refreshHistory() {
-  const history = readJson(STORAGE.history, []);
+  const history = readJson(STORAGE.history, []).map(normalizeHistoryItem);
   const list = document.querySelector("#historyList");
   if (!history.length) {
     list.innerHTML = `<p class="muted">Aucun devis ou facture sauvegardé pour le moment.</p>`;
     return;
   }
   list.innerHTML = history.map((item) => `
-    <article class="history-item" data-quote-number="${escapeAttribute(item.quoteNumber)}">
+    <article class="history-item" data-history-key="${escapeAttribute(historyKey(item))}">
       <div>
         <strong>${escapeHtml(item.quoteNumber)} - ${escapeHtml(item.clientName || "Client non renseigné")}</strong>
-        <p class="history-meta">${formatDate(item.quoteDate)} · ${euros.format(item.totalTtc || 0)} · <span class="status-badge">${escapeHtml(historyStatusLabel(item))}</span></p>
+        <p class="history-meta">${formatDate(item.quoteDate)} · ${escapeHtml(historyTypeLabel(item))} · ${escapeHtml(item.quote?.roomTypeLabel || displayRoomType(item.quote || item) || "Pièce non renseignée")} · ${euros.format(item.totalTtc || 0)} · <span class="status-badge">Statut : ${escapeHtml(historyStatusLabel(item))}</span></p>
       </div>
       <div class="history-actions">
-        <button class="secondary load-history" type="button">Ouvrir</button>
+        <button class="secondary load-history" type="button">Voir / Modifier</button>
+        ${canValidateHistoryItem(item) ? `<button class="primary validate-history" type="button">Valider officiellement</button>` : ""}
         <button class="secondary export-history" type="button">JSON</button>
         <button class="secondary delete-history" type="button">Supprimer</button>
       </div>
@@ -795,11 +891,28 @@ function refreshHistory() {
     });
   });
 
+  list.querySelectorAll(".validate-history").forEach((button) => {
+    button.addEventListener("click", () => {
+      const quote = findHistoryQuote(button);
+      if (!quote) return;
+      localStorage.setItem(STORAGE.current, JSON.stringify(quote));
+      startQuote(quote);
+      showView("quoteView");
+      calculateAndRender();
+      validateOfficialDocument();
+    });
+  });
+
   list.querySelectorAll(".delete-history").forEach((button) => {
     button.addEventListener("click", () => {
-      const number = button.closest(".history-item").dataset.quoteNumber;
-      if (!confirm(`Supprimer le devis ${number} de l'historique ?`)) return;
-      const nextHistory = readJson(STORAGE.history, []).filter((item) => item.quoteNumber !== number);
+      const quote = findHistoryQuote(button);
+      const key = button.closest(".history-item").dataset.historyKey;
+      const isOfficialInvoice = quote?.documentType === "facture" && quote?.isOfficial;
+      const warning = isOfficialInvoice
+        ? `Cette facture est officielle. Son numéro restera réservé. Supprimer ${quote.quoteNumber} de l'affichage ?`
+        : `Supprimer ce devis de l'historique ?`;
+      if (!confirm(warning)) return;
+      const nextHistory = readJson(STORAGE.history, []).filter((item) => historyKey(item) !== key);
       localStorage.setItem(STORAGE.history, JSON.stringify(nextHistory));
       refreshHistory();
     });
@@ -807,16 +920,28 @@ function refreshHistory() {
 }
 
 function findHistoryQuote(button) {
-  const number = button.closest(".history-item").dataset.quoteNumber;
-  const item = readJson(STORAGE.history, []).find((entry) => entry.quoteNumber === number);
+  const key = button.closest(".history-item").dataset.historyKey;
+  const item = readJson(STORAGE.history, []).find((entry) => historyKey(entry) === key);
   return item ? item.quote : null;
 }
 
+function historyKey(item) {
+  const quote = item.quote || item;
+  return isOfficialNumber(quote.quoteNumber) ? quote.quoteNumber : (quote.documentId || item.documentId || quote.quoteNumber);
+}
+
+function canValidateHistoryItem(item) {
+  const quote = item.quote || item;
+  return quote.documentType === "devis" && ["brouillon", "en_attente"].includes(quote.documentStatus) && !quote.isOfficial;
+}
+
 function historyStatusLabel(item) {
-  const label = statusLabel(item.documentStatus || item.quote?.documentStatus || "devis");
-  if (item.isTest || item.quote?.isTest || item.quote?.testMode) return `${label} test`;
-  if (!(item.isOfficial || item.quote?.isOfficial)) return `${label} brouillon`;
-  return label;
+  return statusLabel(item.documentStatus || item.quote?.documentStatus || "brouillon");
+}
+
+function historyTypeLabel(item) {
+  const kind = item.documentKind || item.quote?.documentKind || documentKindFromType(item.quote?.documentType);
+  return kind === "FAC" ? "Facture" : "Devis";
 }
 
 function generatePdf() {
@@ -824,7 +949,7 @@ function generatePdf() {
   const quote = collectQuote();
   const traceText = quote.isOfficial
     ? "Conservez ce PDF comme trace officielle du devis ou de la facture."
-    : "Ce PDF est un brouillon ou un test : il n'a pas de numéro officiel.";
+    : "Ce PDF est un brouillon : il n'a pas de numéro officiel.";
   alert(`Dans la fenêtre d'impression, choisissez 'Enregistrer au format PDF'. ${traceText}`);
   window.print();
 }
@@ -873,15 +998,15 @@ function exportCsv() {
 }
 
 function exportBackup() {
-  const history = readJson(STORAGE.history, []);
+  const history = readJson(STORAGE.history, []).map(normalizeHistoryItem);
   const devis = history
-    .filter((item) => (item.documentKind || item.quote?.documentKind || documentKindFromStatus(item.documentStatus || item.quote?.documentStatus)) === "DEV")
+    .filter((item) => (item.documentKind || item.quote?.documentKind) === "DEV")
     .map((item) => item.quote || item);
   const factures = history
-    .filter((item) => (item.documentKind || item.quote?.documentKind || documentKindFromStatus(item.documentStatus || item.quote?.documentStatus)) === "FAC")
+    .filter((item) => (item.documentKind || item.quote?.documentKind) === "FAC")
     .map((item) => item.quote || item);
   const backup = {
-    version: "1.9",
+    version: "2.2",
     exportedAt: new Date().toISOString(),
     devis,
     factures,
@@ -891,6 +1016,7 @@ function exportBackup() {
     history,
     numerosDejaUtilises: usedNumbersFromHistory(history),
     dernierNumeroUtilise: loadCounters(),
+    dernierBrouillonInterne: parseInt(localStorage.getItem(STORAGE.draftCounter) || "0", 10),
     currentQuote: loadCurrentQuote()
   };
 
@@ -920,6 +1046,12 @@ async function importBackup(event) {
     const protectedCounters = maxCounters(loadCounters(), importedCounters);
     localStorage.setItem(STORAGE.history, JSON.stringify(importedHistory));
     saveCounters(protectedCounters);
+    const importedDraftCounter = Math.max(
+      parseInt(localStorage.getItem(STORAGE.draftCounter) || "0", 10),
+      parseInt(backup.dernierBrouillonInterne || 0, 10),
+      draftCounterFromHistory(importedHistory)
+    );
+    localStorage.setItem(STORAGE.draftCounter, String(importedDraftCounter));
     if (backup.currentQuote) localStorage.setItem(STORAGE.current, JSON.stringify(backup.currentQuote));
     refreshHistory();
     alert("Sauvegarde importée. Les compteurs ont été protégés pour ne jamais revenir en arrière.");
@@ -938,14 +1070,15 @@ function historyFromBackup(backup) {
 
 function normalizeHistoryItem(item) {
   const quote = item.quote || item;
-  const status = quote.documentStatus || item.documentStatus || (documentKindFromNumber(quote.quoteNumber) === "FAC" ? "facture" : "devis");
+  normalizeDocumentState(quote);
+  const status = quote.documentStatus || item.documentStatus || "brouillon";
   quote.documentStatus = status;
-  quote.documentKind = isOfficialNumber(quote.quoteNumber) ? documentKindFromNumber(quote.quoteNumber) : documentKindFromStatus(status);
+  quote.documentKind = isOfficialNumber(quote.quoteNumber) ? documentKindFromNumber(quote.quoteNumber) : documentKindFromType(quote.documentType);
   quote.documentTitle = documentTitle(quote);
   quote.roomTypeLabel = displayRoomType(quote);
-  quote.isTest = Boolean(quote.isTest || quote.testMode || item.isTest);
-  quote.isOfficial = Boolean((quote.isOfficial || item.isOfficial || isOfficialNumber(quote.quoteNumber)) && !quote.isTest);
+  quote.isOfficial = Boolean(quote.isOfficial || item.isOfficial || (isOfficialNumber(quote.quoteNumber) && quote.documentStatus !== "brouillon"));
   return {
+    documentId: quote.documentId,
     quoteNumber: quote.quoteNumber,
     quoteDate: quote.quoteDate,
     clientName: quote.clientName,
@@ -953,7 +1086,6 @@ function normalizeHistoryItem(item) {
     documentStatus: status,
     documentKind: quote.documentKind,
     isOfficial: quote.isOfficial,
-    isTest: quote.isTest,
     savedAt: item.savedAt || quote.savedAt || new Date().toISOString(),
     quote
   };
@@ -979,6 +1111,14 @@ function usedNumbersFromHistory(history) {
   return history
     .map((item) => item.quoteNumber || item.quote?.quoteNumber)
     .filter((number) => isOfficialNumber(number));
+}
+
+function draftCounterFromHistory(history) {
+  return history.reduce((max, item) => {
+    const id = String(item.documentId || item.quote?.documentId || "");
+    const match = id.match(/^DRAFT-\d{4}-(\d+)$/);
+    return match ? Math.max(max, parseInt(match[1], 10)) : max;
+  }, 0);
 }
 
 function exportLibreOfficeHtml() {
@@ -1034,6 +1174,12 @@ function generateDocumentNumber(kind) {
   counters[key] = Math.max(0, parseInt(counters[key] || 0, 10)) + 1;
   saveCounters(counters);
   return `${key}-${new Date().getFullYear()}-${String(counters[key]).padStart(4, "0")}`;
+}
+
+function createDraftId() {
+  const current = parseInt(localStorage.getItem(STORAGE.draftCounter) || "0", 10) + 1;
+  localStorage.setItem(STORAGE.draftCounter, String(current));
+  return `DRAFT-${new Date().getFullYear()}-${String(current).padStart(4, "0")}`;
 }
 
 function loadCounters() {
