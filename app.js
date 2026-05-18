@@ -41,13 +41,13 @@ const AVAILABLE_SERVICES = [
   "Autre / Ligne libre"
 ];
 
-const QUOTE_STATUS_OPTIONS = [
-  { value: "en_attente", label: "🟡 En attente client" },
-  { value: "accepte", label: "🟢 Accepté" },
-  { value: "planifie", label: "🔵 Planifié" },
-  { value: "en_cours", label: "🟠 En cours" },
-  { value: "termine", label: "✅ Terminé" },
-  { value: "refuse", label: "🔴 Refusé" }
+const WORKFLOW_STATUSES = [
+  { value: "brouillon", label: "Brouillon" },
+  { value: "devis_envoye", label: "Devis envoyé" },
+  { value: "devis_accepte", label: "Devis accepté" },
+  { value: "facture_creee", label: "Facture créée" },
+  { value: "facture_envoyee", label: "Facture envoyée" },
+  { value: "facture_payee", label: "✅ Facture payée" }
 ];
 
 const ROOM_TYPES = [
@@ -79,6 +79,11 @@ const quoteFields = [
   "quoteNumber",
   "documentType",
   "documentStatus",
+  "quoteSentAt",
+  "quoteAcceptedAt",
+  "invoiceCreatedAt",
+  "invoiceSentAt",
+  "invoicePaidAt",
   "siteAddress",
   "roomType",
   "roomTypeCustom",
@@ -146,21 +151,23 @@ function bindEvents() {
   document.querySelector("#newQuoteBtn").addEventListener("click", newQuote);
   document.querySelector("#clearCurrentBtn").addEventListener("click", clearCurrentQuote);
   document.querySelector("#pdfBtn").addEventListener("click", generatePdf);
-  document.querySelector("#mailBtn").addEventListener("click", sendMail);
+  document.querySelector("#mailBtn").addEventListener("click", sendQuoteMail);
   document.querySelector("#libreOfficeBtn").addEventListener("click", exportLibreOfficeHtml);
   document.querySelector("#jsonBtn").addEventListener("click", exportJson);
   document.querySelector("#csvBtn").addEventListener("click", exportCsv);
   document.querySelector("#photoInput").addEventListener("change", handlePhotoInput);
   document.querySelector("#documentType").addEventListener("change", updateDocumentNumberForStatus);
   document.querySelector("#documentStatus").addEventListener("change", () => {
+    updateDocumentTypeFromWorkflow();
     calculateAndRender();
     saveCurrentQuietly();
   });
   document.querySelector("#roomType").addEventListener("change", updateRoomTypeCustomVisibility);
   addSelectedServiceBtn.addEventListener("click", addSelectedService);
+  document.querySelector("#acceptQuoteBtn").addEventListener("click", acceptQuote);
   document.querySelector("#validateOfficialBtn").addEventListener("click", validateOfficialDocument);
+  document.querySelector("#sendInvoiceBtn").addEventListener("click", sendInvoiceMail);
   document.querySelector("#markPaidBtn").addEventListener("click", markInvoicePaid);
-  document.querySelector("#cancelDocumentBtn").addEventListener("click", cancelOfficialDocument);
   document.querySelector("#exportBackupBtn").addEventListener("click", exportBackup);
   document.querySelector("#importBackupInput").addEventListener("change", importBackup);
   document.querySelector("#saveCompanyBtn").addEventListener("click", saveCompanySettings);
@@ -340,8 +347,13 @@ function createBlankQuote() {
     documentId: createDraftId(),
     quoteNumber: "DEVIS BROUILLON",
     documentType: "devis",
-    documentStatus: "en_attente",
+    documentStatus: "brouillon",
     isOfficial: false,
+    quoteSentAt: "",
+    quoteAcceptedAt: "",
+    invoiceCreatedAt: "",
+    invoiceSentAt: "",
+    invoicePaidAt: "",
     clientName: "",
     clientPhone: "",
     clientEmail: "",
@@ -413,29 +425,43 @@ function normalizedDocumentState(quote) {
   const rawType = quote.documentType || "";
   const kind = documentKindFromNumber(quote.quoteNumber);
   let documentType = rawType || (kind === "FAC" ? "facture" : "devis");
-  let documentStatus = rawStatus || "en_attente";
+  let documentStatus = legacyStatusToWorkflow(rawStatus || "brouillon");
 
   if (rawStatus === "devis" || rawStatus === "facture") {
     documentType = rawStatus;
-    documentStatus = isOfficialNumber(quote.quoteNumber) || quote.isOfficial ? "validé" : "en_attente";
+    documentStatus = isOfficialNumber(quote.quoteNumber) || quote.isOfficial ? "facture_creee" : "brouillon";
   }
 
-  if (rawStatus === "payé") {
-    documentType = "facture";
-    documentStatus = "payé";
-  }
-
-  if (rawStatus === "annulé") {
-    documentType = rawType || (kind === "FAC" ? "facture" : "devis");
-    documentStatus = "annulé";
-  }
+  if (isInvoiceWorkflowStatus(documentStatus)) documentType = "facture";
+  if (isQuoteWorkflowStatus(documentStatus)) documentType = "devis";
 
   if (!["devis", "facture"].includes(documentType)) documentType = kind === "FAC" ? "facture" : "devis";
-  const allowedStatuses = ["brouillon", "en_attente", "accepte", "planifie", "en_cours", "termine", "refuse", "validé", "payé", "annulé"];
-  if (!allowedStatuses.includes(documentStatus)) documentStatus = "en_attente";
-  if (documentType === "devis" && documentStatus === "payé") documentStatus = "validé";
+  if (!WORKFLOW_STATUSES.some((status) => status.value === documentStatus)) documentStatus = "brouillon";
 
   return { documentType, documentStatus };
+}
+
+function legacyStatusToWorkflow(status) {
+  const mappedStatuses = {
+    en_attente: "devis_envoye",
+    accepte: "devis_accepte",
+    planifie: "devis_accepte",
+    en_cours: "devis_accepte",
+    termine: "devis_accepte",
+    refuse: "brouillon",
+    validé: "facture_creee",
+    payé: "facture_payee",
+    annulé: "brouillon"
+  };
+  return mappedStatuses[status] || status;
+}
+
+function isQuoteWorkflowStatus(status) {
+  return ["brouillon", "devis_envoye", "devis_accepte"].includes(status);
+}
+
+function isInvoiceWorkflowStatus(status) {
+  return ["facture_creee", "facture_envoyee", "facture_payee"].includes(status);
 }
 
 function updateRoomTypeCustomVisibility() {
@@ -456,16 +482,23 @@ function updateDocumentNumberForStatus() {
   saveCurrentQuietly();
 }
 
+function updateDocumentTypeFromWorkflow() {
+  const status = document.querySelector("#documentStatus").value;
+  document.querySelector("#documentType").value = isInvoiceWorkflowStatus(status) ? "facture" : "devis";
+}
+
 function updateDocumentUi() {
   const quote = collectQuote();
-  const isInvoice = quote.documentType === "facture";
-  const isValidatedInvoice = isInvoice && quote.documentStatus === "validé" && quote.isOfficial;
+  const isInvoice = quote.documentType === "facture" || isInvoiceWorkflowStatus(quote.documentStatus);
+  const isQuote = !isInvoice;
 
   document.querySelector("#statusDisplay").textContent = statusLabel(quote.documentStatus);
-  document.querySelector("#saveQuoteBtn").classList.toggle("hidden-field", quote.isOfficial);
-  document.querySelector("#validateOfficialBtn").classList.toggle("hidden-field", !["brouillon", "en_attente", "accepte"].includes(quote.documentStatus) || quote.isOfficial);
-  document.querySelector("#markPaidBtn").classList.toggle("hidden-field", !isValidatedInvoice);
-  document.querySelector("#cancelDocumentBtn").classList.toggle("hidden-field", quote.documentStatus !== "validé" || !quote.isOfficial);
+  document.querySelector("#saveQuoteBtn").classList.toggle("hidden-field", false);
+  document.querySelector("#mailBtn").classList.toggle("hidden-field", !isQuote);
+  document.querySelector("#acceptQuoteBtn").classList.toggle("hidden-field", !["devis_envoye"].includes(quote.documentStatus));
+  document.querySelector("#validateOfficialBtn").classList.toggle("hidden-field", quote.documentStatus !== "devis_accepte");
+  document.querySelector("#sendInvoiceBtn").classList.toggle("hidden-field", quote.documentStatus !== "facture_creee");
+  document.querySelector("#markPaidBtn").classList.toggle("hidden-field", !["facture_creee", "facture_envoyee"].includes(quote.documentStatus));
   document.querySelector("#documentType").disabled = quote.isOfficial;
   document.querySelector("#documentStatus").disabled = quote.isOfficial;
 }
@@ -671,10 +704,6 @@ function displayRoomType(quote) {
   return quote.roomType || "";
 }
 
-function documentKindFromStatus(status) {
-  return status === "payé" ? "FAC" : "DEV";
-}
-
 function documentKindFromType(type) {
   return type === "facture" ? "FAC" : "DEV";
 }
@@ -689,35 +718,27 @@ function documentTitle(quote) {
 }
 
 function documentStatusBanner(quote) {
+  if (quote.documentStatus === "facture_payee") {
+    return `<div class="doc-paid-banner">✅ FACTURE PAYÉE</div>`;
+  }
+
   if (!quote.isOfficial || quote.documentStatus === "brouillon") {
-    return `<div class="doc-draft-banner">DEVIS - ${escapeHtml(statusLabel(quote.documentStatus))} / NON OFFICIEL</div>`;
+    return `<div class="doc-draft-banner">${escapeHtml(quote.documentTitle)} - ${escapeHtml(statusLabel(quote.documentStatus))} / NON OFFICIEL</div>`;
   }
 
-  if (quote.documentStatus === "payé" && quote.documentTitle === "FACTURE") {
-    return `<div class="doc-paid-banner">FACTURE PAYÉE</div>`;
-  }
-
-  if (quote.documentStatus === "annulé") {
-    return `<div class="doc-cancelled-banner">${escapeHtml(quote.documentTitle)} ANNULÉ${quote.documentTitle === "FACTURE" ? "E" : ""}</div>`;
-  }
-
-  return `<div class="doc-official-banner">Statut : Validé</div>`;
+  return `<div class="doc-official-banner">Statut : ${escapeHtml(statusLabel(quote.documentStatus))}</div>`;
 }
 
 function statusLabel(status) {
   const labels = {
     brouillon: "Brouillon",
-    en_attente: "🟡 En attente client",
-    accepte: "🟢 Accepté",
-    planifie: "🔵 Planifié",
-    en_cours: "🟠 En cours",
-    termine: "✅ Terminé",
-    refuse: "🔴 Refusé",
-    validé: "Validé",
-    payé: "Payé",
-    annulé: "Annulé"
+    devis_envoye: "Devis envoyé",
+    devis_accepte: "Devis accepté",
+    facture_creee: "Facture créée",
+    facture_envoyee: "Facture envoyée",
+    facture_payee: "✅ Facture payée"
   };
-  return labels[status] || "🟡 En attente client";
+  return labels[status] || "Brouillon";
 }
 
 function typeLabel(type) {
@@ -868,47 +889,43 @@ function saveQuote() {
   alert("Devis enregistré dans l'historique. Vous pourrez le rouvrir, le modifier, puis le réenregistrer sans créer un nouveau devis.");
 }
 
+function sendQuoteMail() {
+  setWorkflowStatus("devis_envoye", "quoteSentAt");
+  sendMail("Devis");
+}
+
+function acceptQuote() {
+  setWorkflowStatus("devis_accepte", "quoteAcceptedAt");
+  alert("Statut : Devis accepté");
+}
+
 function validateOfficialDocument() {
-  let quote = collectQuote();
-  if (!["brouillon", "en_attente", "accepte"].includes(quote.documentStatus) || quote.isOfficial) return;
-  if (!confirm("Le client accepte ce devis ? Voulez-vous le transformer en facture officielle ?")) return;
-  const kind = "FAC";
+  document.querySelector("#documentType").value = "facture";
+  setWorkflowStatus("facture_creee", "invoiceCreatedAt");
+  alert("Statut : Facture créée");
+}
 
-  if (!isOfficialNumber(quote.quoteNumber) || documentKindFromNumber(quote.quoteNumber) !== "FAC") {
-    document.querySelector("#quoteNumber").value = generateDocumentNumber(kind);
-    document.querySelector("#documentType").value = "facture";
-    document.querySelector("#documentStatus").value = "validé";
-    quote = collectQuote();
-  }
-
-  quote.isOfficial = true;
-  saveHistoryDocument(quote);
-  updateDocumentUi();
-  calculateAndRender();
-  if (confirm(`Facture ${quote.quoteNumber} créée officiellement. Voulez-vous télécharger le PDF maintenant ?`)) {
-    generatePdf();
-  } else {
-    alert("Pensez à exporter une sauvegarde régulièrement. Le PDF reste la vraie trace à conserver.");
-  }
+function sendInvoiceMail() {
+  document.querySelector("#documentType").value = "facture";
+  setWorkflowStatus("facture_envoyee", "invoiceSentAt");
+  sendMail("Facture");
 }
 
 function markInvoicePaid() {
-  let quote = collectQuote();
-  if (quote.documentType !== "facture" || quote.documentStatus !== "validé" || !quote.isOfficial) return;
   if (!confirm("Marquer cette facture comme payée ?")) return;
-  document.querySelector("#documentStatus").value = "payé";
-  quote = collectQuote();
-  saveHistoryDocument(quote);
-  calculateAndRender();
-  alert("Statut : Payé");
+  document.querySelector("#documentType").value = "facture";
+  setWorkflowStatus("facture_payee", "invoicePaidAt");
+  alert("✅ FACTURE PAYÉE");
 }
 
-function cancelOfficialDocument() {
-  let quote = collectQuote();
-  if (quote.documentStatus !== "validé" || !quote.isOfficial) return;
-  if (!confirm(`Annuler ce ${typeLabel(quote.documentType).toLowerCase()} ?`)) return;
-  document.querySelector("#documentStatus").value = "annulé";
-  quote = collectQuote();
+function setWorkflowStatus(status, dateField) {
+  document.querySelector("#documentStatus").value = status;
+  updateDocumentTypeFromWorkflow();
+  if (dateField) {
+    const field = document.querySelector(`#${dateField}`);
+    if (field) field.value = new Date().toISOString();
+  }
+  const quote = collectQuote();
   saveHistoryDocument(quote);
   calculateAndRender();
 }
@@ -970,15 +987,15 @@ function refreshHistory() {
     return;
   }
   list.innerHTML = history.map((item) => `
-    <article class="history-item" data-history-key="${escapeAttribute(historyKey(item))}">
+    <article class="history-item${item.documentStatus === "facture_payee" ? " paid-history" : ""}" data-history-key="${escapeAttribute(historyKey(item))}">
       <div>
         <strong>${escapeHtml(historyDisplayNumber(item))} - ${escapeHtml(item.clientName || "Client non renseigné")}</strong>
-        <p class="history-meta">${formatDate(item.quoteDate)} · ${escapeHtml(historyTypeLabel(item))} · ${euros.format(item.totalTtc || 0)} · <span class="status-badge">Statut : ${escapeHtml(historyStatusLabel(item))}</span></p>
+        <p class="history-meta">${formatDate(item.quoteDate)} · ${escapeHtml(historyTypeLabel(item))} · ${euros.format(item.totalTtc || 0)} · <span class="status-badge${item.documentStatus === "facture_payee" ? " paid" : ""}">Statut : ${escapeHtml(historyStatusLabel(item))}</span></p>
+        ${historyTraceHtml(item)}
       </div>
       <div class="history-actions">
         <select class="history-status" aria-label="Changer le statut du devis">${historyStatusOptionsHtml(item)}</select>
         <button class="secondary load-history" type="button">Voir / Modifier</button>
-        ${canValidateHistoryItem(item) ? `<button class="primary validate-history" type="button">Valider officiellement</button>` : ""}
         <button class="secondary export-history" type="button">JSON</button>
         <button class="secondary delete-history" type="button">🗑 Supprimer</button>
       </div>
@@ -1005,18 +1022,6 @@ function refreshHistory() {
     button.addEventListener("click", () => {
       const quote = findHistoryQuote(button);
       if (quote) downloadFile(`${quote.quoteNumber}.json`, JSON.stringify(quote, null, 2), "application/json");
-    });
-  });
-
-  list.querySelectorAll(".validate-history").forEach((button) => {
-    button.addEventListener("click", () => {
-      const quote = findHistoryQuote(button);
-      if (!quote) return;
-      localStorage.setItem(STORAGE.current, JSON.stringify(quote));
-      startQuote(quote);
-      showView("quoteView");
-      calculateAndRender();
-      validateOfficialDocument();
     });
   });
 
@@ -1049,11 +1054,11 @@ function historyKey(item) {
 
 function canValidateHistoryItem(item) {
   const quote = item.quote || item;
-  return quote.documentType === "devis" && ["brouillon", "en_attente", "accepte"].includes(quote.documentStatus) && !quote.isOfficial;
+  return quote.documentType === "devis" && quote.documentStatus === "devis_accepte" && !quote.isOfficial;
 }
 
 function historyStatusLabel(item) {
-  return statusLabel(item.documentStatus || item.quote?.documentStatus || "en_attente");
+  return statusLabel(item.documentStatus || item.quote?.documentStatus || "brouillon");
 }
 
 function historyTypeLabel(item) {
@@ -1068,16 +1073,31 @@ function historyDisplayNumber(item) {
 
 function historyStatusOptionsHtml(item) {
   const quote = item.quote || item;
-  const current = quote.documentStatus || "en_attente";
-  const options = QUOTE_STATUS_OPTIONS.map((status) => {
+  const current = quote.documentStatus || "brouillon";
+  const options = WORKFLOW_STATUSES.map((status) => {
     return `<option value="${escapeAttribute(status.value)}"${status.value === current ? " selected" : ""}>${escapeHtml(status.label)}</option>`;
   });
 
-  if (!QUOTE_STATUS_OPTIONS.some((status) => status.value === current)) {
+  if (!WORKFLOW_STATUSES.some((status) => status.value === current)) {
     options.unshift(`<option value="${escapeAttribute(current)}" selected>${escapeHtml(statusLabel(current))}</option>`);
   }
 
   return options.join("");
+}
+
+function historyTraceHtml(item) {
+  const quote = item.quote || item;
+  const traces = [
+    ["Date envoi devis", quote.quoteSentAt],
+    ["Date acceptation", quote.quoteAcceptedAt],
+    ["Date création facture", quote.invoiceCreatedAt],
+    ["Date envoi facture", quote.invoiceSentAt],
+    ["Date paiement", quote.invoicePaidAt]
+  ].filter(([, value]) => value);
+
+  if (!traces.length) return "";
+
+  return `<p class="history-trace">${traces.map(([label, value]) => `${escapeHtml(label)} : ${escapeHtml(formatDateTime(value))}`).join(" · ")}</p>`;
 }
 
 function updateHistoryStatus(select) {
@@ -1088,7 +1108,11 @@ function updateHistoryStatus(select) {
 
   const quote = item.quote || item;
   quote.documentStatus = select.value;
+  quote.documentType = isInvoiceWorkflowStatus(select.value) ? "facture" : "devis";
+  quote.documentKind = documentKindFromType(quote.documentType);
+  quote.documentTitle = documentTitle(quote);
   item.documentStatus = select.value;
+  item.documentKind = quote.documentKind;
   item.savedAt = new Date().toISOString();
   if (item.quote) item.quote = quote;
 
@@ -1115,9 +1139,9 @@ function generatePdf() {
   window.print();
 }
 
-function sendMail() {
+function sendMail(forcedTitle) {
   const quote = collectQuote();
-  const title = quote.documentTitle === "FACTURE" ? "Facture" : "Devis";
+  const title = forcedTitle || (quote.documentTitle === "FACTURE" ? "Facture" : "Devis");
   const subject = `${title} ${quote.quoteNumber} - Will'Paint`;
   const body = [
     `Bonjour ${quote.clientName || ""},`,
@@ -1167,7 +1191,7 @@ function exportBackup() {
     .filter((item) => (item.documentKind || item.quote?.documentKind) === "FAC")
     .map((item) => item.quote || item);
   const backup = {
-    version: "2.2",
+    version: "2.0",
     exportedAt: new Date().toISOString(),
     devis,
     factures,
@@ -1400,6 +1424,14 @@ function formatNumber(value) {
 function formatDate(value) {
   if (!value) return "";
   return new Date(value).toLocaleDateString("fr-FR");
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
 }
 
 function formatPercent(value) {

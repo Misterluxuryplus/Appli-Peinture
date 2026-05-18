@@ -956,6 +956,11 @@ textarea:focus {
   background: var(--surface-soft);
 }
 
+.history-item.paid-history {
+  border-color: #1f8f55;
+  background: #eefaf3;
+}
+
 .history-item strong {
   display: block;
 }
@@ -963,6 +968,11 @@ textarea:focus {
 .history-item p {
   margin-bottom: 0;
   color: var(--muted);
+}
+
+.history-trace {
+  margin-top: 6px;
+  font-size: 0.85rem;
 }
 
 .history-actions {
@@ -992,6 +1002,11 @@ textarea:focus {
 .status-badge {
   color: var(--primary);
   font-weight: 900;
+}
+
+.status-badge.paid {
+  color: #167342;
+  font-size: 1rem;
 }
 
 .mobile-version {

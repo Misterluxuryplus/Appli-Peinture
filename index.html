@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css?v=1.8">
+    <link rel="stylesheet" href="style.css?v=2.0">
   </head>
   <body>
     <header class="app-header">
@@ -21,7 +21,7 @@
         <div>
           <p class="eyebrow">Application locale de devis</p>
           <h1>Will'Paint</h1>
-          <p class="app-version">Version 1.8</p>
+          <p class="app-version">Version 2.0</p>
         </div>
       </div>
       <nav class="top-nav" aria-label="Navigation principale">
@@ -239,18 +239,19 @@
                 <label>
                   État du devis
                   <select id="documentStatus" name="documentStatus">
-                    <option value="en_attente" selected>🟡 En attente client</option>
-                    <option value="accepte">🟢 Accepté</option>
-                    <option value="planifie">🔵 Planifié</option>
-                    <option value="en_cours">🟠 En cours</option>
-                    <option value="termine">✅ Terminé</option>
-                    <option value="refuse">🔴 Refusé</option>
-                    <option value="brouillon" disabled>Brouillon</option>
-                    <option value="validé" disabled>Validé</option>
-                    <option value="payé" disabled>Payé</option>
-                    <option value="annulé" disabled>Annulé</option>
+                    <option value="brouillon" selected>Brouillon</option>
+                    <option value="devis_envoye">Devis envoyé</option>
+                    <option value="devis_accepte">Devis accepté</option>
+                    <option value="facture_creee">Facture créée</option>
+                    <option value="facture_envoyee">Facture envoyée</option>
+                    <option value="facture_payee">✅ Facture payée</option>
                   </select>
                 </label>
+                <input id="quoteSentAt" name="quoteSentAt" type="hidden">
+                <input id="quoteAcceptedAt" name="quoteAcceptedAt" type="hidden">
+                <input id="invoiceCreatedAt" name="invoiceCreatedAt" type="hidden">
+                <input id="invoiceSentAt" name="invoiceSentAt" type="hidden">
+                <input id="invoicePaidAt" name="invoicePaidAt" type="hidden">
                 <div class="status-panel">
                   <span>Statut</span>
                   <strong id="statusDisplay">Brouillon</strong>
@@ -271,11 +272,12 @@
           <aside class="panel preview-panel" data-mobile-step="5" aria-label="Aperçu du devis">
             <div class="preview-toolbar">
               <button id="saveQuoteBtn" class="secondary" type="button">Enregistrer en brouillon</button>
-              <button id="validateOfficialBtn" class="primary" type="button">Valider officiellement</button>
-              <button id="markPaidBtn" class="primary hidden-field" type="button">Marquer comme payé</button>
-              <button id="cancelDocumentBtn" class="secondary hidden-field" type="button">Annuler document</button>
+              <button id="mailBtn" class="secondary" type="button">Envoyer devis</button>
+              <button id="acceptQuoteBtn" class="primary hidden-field" type="button">Marquer comme accepté</button>
+              <button id="validateOfficialBtn" class="primary hidden-field" type="button">Créer facture</button>
+              <button id="sendInvoiceBtn" class="secondary hidden-field" type="button">Envoyer facture</button>
+              <button id="markPaidBtn" class="primary hidden-field" type="button">Facture payée</button>
               <button id="pdfBtn" class="primary" type="button">Générer PDF</button>
-              <button id="mailBtn" class="secondary" type="button">Envoyer au client</button>
               <button id="libreOfficeBtn" class="secondary" type="button">LibreOffice</button>
               <button id="jsonBtn" class="secondary" type="button">JSON</button>
               <button id="csvBtn" class="secondary" type="button">CSV</button>
@@ -357,7 +359,7 @@
       </section>
     </main>
 
-    <footer class="mobile-version">Version 1.8 - Historique devis<br><span>Version actuelle : 1.8</span></footer>
+    <footer class="mobile-version">Version 2.0 - Workflow devis/facture<br><span>Version actuelle : 2.0</span></footer>
 
     <template id="lineTemplate">
       <tr>
@@ -382,6 +384,6 @@
       </tr>
     </template>
 
-    <script src="app.js?v=1.8"></script>
+    <script src="app.js?v=2.0"></script>
   </body>
 </html>
