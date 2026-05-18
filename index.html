@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css?v=2.0.4">
+    <link rel="stylesheet" href="style.css?v=2.0.5">
   </head>
   <body>
     <header class="app-header">
@@ -21,7 +21,7 @@
         <div>
           <p class="eyebrow">Application locale de devis</p>
           <h1>Will'Paint</h1>
-          <p class="app-version">Version 2.0.4</p>
+          <p class="app-version">Version 2.0.5</p>
         </div>
       </div>
       <nav class="top-nav" aria-label="Navigation principale">
@@ -158,6 +158,10 @@
                       <option>Non</option>
                     </select>
                   </label>
+                </div>
+                <div class="room-manager">
+                  <button id="addRoomBtn" class="secondary" type="button">Ajouter une pièce</button>
+                  <div id="roomsList" class="rooms-list" aria-label="Pièces du chantier"></div>
                 </div>
               </section>
 
@@ -354,7 +358,7 @@
       </section>
     </main>
 
-    <footer class="mobile-version">Version 2.0.4 - États ultra simplifiés<br><span>Version actuelle : 2.0.4</span></footer>
+    <footer class="mobile-version">Version 2.0.5 - Plusieurs pièces + police<br><span>Version actuelle : 2.0.5</span></footer>
 
     <template id="lineTemplate">
       <tr>
@@ -379,6 +383,6 @@
       </tr>
     </template>
 
-    <script src="app.js?v=2.0.4"></script>
+    <script src="app.js?v=2.0.5"></script>
   </body>
 </html>

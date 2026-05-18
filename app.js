@@ -99,11 +99,13 @@ const companyFields = ["companyName", "companySubtitle", "companyPhone", "compan
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const QUANTITY_ERROR = "";
 let currentPhotos = [];
+let currentRooms = [];
 
 const form = document.querySelector("#quoteForm");
 const companyForm = document.querySelector("#companyForm");
 const linesBody = document.querySelector("#linesBody");
 const mobileLinesBody = document.querySelector("#mobileLinesBody");
+const roomsList = document.querySelector("#roomsList");
 const serviceSelect = document.querySelector("#serviceSelect");
 const addSelectedServiceBtn = document.querySelector("#addSelectedServiceBtn");
 const lineTemplate = document.querySelector("#lineTemplate");
@@ -160,6 +162,7 @@ function bindEvents() {
     saveCurrentQuietly();
   });
   document.querySelector("#roomType").addEventListener("change", updateRoomTypeCustomVisibility);
+  document.querySelector("#addRoomBtn").addEventListener("click", addRoomFromCurrentFields);
   addSelectedServiceBtn.addEventListener("click", addSelectedService);
   document.querySelector("#markPaidBtn").addEventListener("click", markInvoicePaid);
   document.querySelector("#exportBackupBtn").addEventListener("click", exportBackup);
@@ -355,6 +358,8 @@ function startQuote(savedQuote) {
   updateRoomTypeCustomVisibility();
   updateDocumentUi();
   currentPhotos = quote.photos || [];
+  currentRooms = Array.isArray(quote.rooms) ? quote.rooms : [];
+  renderRooms();
   linesBody.innerHTML = "";
   (quote.lines || []).forEach(addLine);
   renderPhotos();
@@ -388,6 +393,7 @@ function createBlankQuote() {
     coatCount: 2,
     supportState: "Bon",
     prepNeeded: "Oui",
+    rooms: [],
     vatRate: "0.212",
     quoteObservations: "",
     conditions: "Devis valable 30 jours. Acompte de 30 % à la commande. Solde à la réception des travaux.",
@@ -495,6 +501,120 @@ function updateRoomTypeCustomVisibility() {
   const isCustom = document.querySelector("#roomType").value === "Autre / Libre";
   customWrap.classList.toggle("hidden-field", !isCustom);
   if (!isCustom) customInput.value = "";
+}
+
+function addRoomFromCurrentFields() {
+  const room = {
+    id: createRoomId(),
+    roomType: document.querySelector("#roomType").value,
+    roomTypeCustom: document.querySelector("#roomTypeCustom").value.trim(),
+    wallSurface: document.querySelector("#wallSurface").value,
+    ceilingSurface: document.querySelector("#ceilingSurface").value,
+    coatCount: document.querySelector("#coatCount").value || "1",
+    supportState: document.querySelector("#supportState").value,
+    prepNeeded: document.querySelector("#prepNeeded").value
+  };
+
+  currentRooms.push(room);
+  renderRooms();
+  calculateAndRender();
+  saveCurrentQuietly();
+}
+
+function createRoomId() {
+  return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+}
+
+function renderRooms() {
+  if (!roomsList) return;
+  roomsList.innerHTML = currentRooms.map((room) => roomCardHtml(room)).join("");
+
+  roomsList.querySelectorAll(".remove-room").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.closest(".room-card").dataset.roomId;
+      currentRooms = currentRooms.filter((room) => room.id !== id);
+      renderRooms();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+  });
+
+  roomsList.querySelectorAll("input, select").forEach((field) => {
+    field.addEventListener("input", () => {
+      currentRooms = collectRoomsFromCards();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+    field.addEventListener("change", () => {
+      currentRooms = collectRoomsFromCards();
+      renderRooms();
+      calculateAndRender();
+      saveCurrentQuietly();
+    });
+  });
+}
+
+function roomCardHtml(room) {
+  const type = room.roomType || "";
+  return `
+    <article class="room-card" data-room-id="${escapeAttribute(room.id)}">
+      <button class="remove-room remove-cross" type="button" title="Supprimer la pièce" aria-label="Supprimer la pièce">✕</button>
+      <div class="room-grid">
+        <label>Type de pièce
+          <select class="room-type">${roomTypeOptionsHtml(type)}</select>
+        </label>
+        <label>Nom personnalisé
+          <input class="room-custom" value="${escapeAttribute(room.roomTypeCustom || "")}" placeholder="Ex : chambre enfant">
+        </label>
+        <label>Surface murs m²
+          <input class="room-walls" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(room.wallSurface ?? "")}">
+        </label>
+        <label>Surface plafond m²
+          <input class="room-ceiling" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(room.ceilingSurface ?? "")}">
+        </label>
+        <label>Nombre de couches
+          <input class="room-coats" type="number" inputmode="numeric" min="1" step="1" value="${escapeAttribute(room.coatCount || "1")}">
+        </label>
+        <label>État du support
+          <select class="room-support">${supportOptionsHtml(room.supportState || "Bon")}</select>
+        </label>
+        <label>Préparation nécessaire
+          <select class="room-prep">${prepOptionsHtml(room.prepNeeded || "Oui")}</select>
+        </label>
+      </div>
+    </article>`;
+}
+
+function collectRoomsFromCards() {
+  if (!roomsList) return currentRooms;
+  return Array.from(roomsList.querySelectorAll(".room-card")).map((card) => ({
+    id: card.dataset.roomId || createRoomId(),
+    roomType: card.querySelector(".room-type")?.value || "",
+    roomTypeCustom: card.querySelector(".room-custom")?.value.trim() || "",
+    wallSurface: card.querySelector(".room-walls")?.value || "",
+    ceilingSurface: card.querySelector(".room-ceiling")?.value || "",
+    coatCount: card.querySelector(".room-coats")?.value || "",
+    supportState: card.querySelector(".room-support")?.value || "Bon",
+    prepNeeded: card.querySelector(".room-prep")?.value || "Oui"
+  }));
+}
+
+function roomTypeOptionsHtml(selectedType) {
+  return [`<option value="">Choisir une pièce</option>`].concat(ROOM_TYPES.map((type) => {
+    return `<option value="${escapeAttribute(type)}"${type === selectedType ? " selected" : ""}>${escapeHtml(type)}</option>`;
+  })).join("");
+}
+
+function supportOptionsHtml(selectedState) {
+  return ["Bon", "Moyen", "Mauvais"].map((state) => {
+    return `<option${state === selectedState ? " selected" : ""}>${escapeHtml(state)}</option>`;
+  }).join("");
+}
+
+function prepOptionsHtml(selectedPrep) {
+  return ["Oui", "Non"].map((prep) => {
+    return `<option${prep === selectedPrep ? " selected" : ""}>${escapeHtml(prep)}</option>`;
+  }).join("");
 }
 
 function updateDocumentNumberForStatus() {
@@ -676,6 +796,7 @@ function collectQuote() {
   });
 
   quote.photos = currentPhotos;
+  quote.rooms = collectRoomsFromCards();
   quote.totalHt = quote.lines.reduce((sum, line) => sum + line.total, 0);
   quote.vatRate = parseFloat(quote.vatRate) || 0;
   quote.totalVat = quote.totalHt * quote.vatRate;
@@ -687,6 +808,31 @@ function collectQuote() {
 function displayRoomType(quote) {
   if (quote.roomType === "Autre / Libre") return quote.roomTypeCustom || "";
   return quote.roomType || "";
+}
+
+function displayRoomName(room) {
+  if (!room) return "";
+  if (room.roomType === "Autre / Libre") return room.roomTypeCustom || "Pièce";
+  return room.roomTypeCustom || room.roomType || "Pièce";
+}
+
+function roomSurfaceText(room) {
+  const parts = [];
+  if (room.wallSurface !== "" && room.wallSurface !== undefined) parts.push(`murs ${formatNumber(room.wallSurface)} m²`);
+  if (room.ceilingSurface !== "" && room.ceilingSurface !== undefined) parts.push(`plafond ${formatNumber(room.ceilingSurface)} m²`);
+  if (room.coatCount) parts.push(`${escapeHtml(room.coatCount)} couche${String(room.coatCount) === "1" ? "" : "s"}`);
+  if (room.supportState) parts.push(`support ${escapeHtml(room.supportState)}`);
+  if (room.prepNeeded) parts.push(`préparation ${escapeHtml(room.prepNeeded)}`);
+  return parts.join(", ");
+}
+
+function roomsListHtml(rooms) {
+  if (!rooms || !rooms.length) return "";
+  return `
+    <br><strong>Pièces concernées :</strong>
+    <ul class="doc-room-list">
+      ${rooms.map((room) => `<li><strong>${escapeHtml(displayRoomName(room))}</strong>${roomSurfaceText(room) ? ` : ${roomSurfaceText(room)}` : ""}</li>`).join("")}
+    </ul>`;
 }
 
 function documentKindFromType(type) {
@@ -795,7 +941,7 @@ function renderPreview(quote) {
       </section>
       <section class="doc-block">
         <h3>Chantier</h3>
-        <p>${nl2br(quote.siteAddress)}<br>Type de pièce : ${escapeHtml(quote.roomTypeLabel)}<br>Murs : ${formatNumber(quote.wallSurface)} m² | Plafond : ${formatNumber(quote.ceilingSurface)} m²<br>Couches : ${escapeHtml(quote.coatCount)} | Support : ${escapeHtml(quote.supportState)} | Préparation : ${escapeHtml(quote.prepNeeded)}</p>
+        <p>${nl2br(quote.siteAddress)}<br>Type de pièce : ${escapeHtml(quote.roomTypeLabel)}<br>Murs : ${formatNumber(quote.wallSurface)} m² | Plafond : ${formatNumber(quote.ceilingSurface)} m²<br>Couches : ${escapeHtml(quote.coatCount)} | Support : ${escapeHtml(quote.supportState)} | Préparation : ${escapeHtml(quote.prepNeeded)}${roomsListHtml(quote.rooms)}</p>
       </section>
     </div>
 
@@ -1288,7 +1434,7 @@ function buildLibreOfficeHtml(quote) {
   <h2>Client</h2>
   <p><strong>${escapeHtml(quote.clientName)}</strong><br>${nl2br(quote.clientAddress)}<br>${escapeHtml(quote.clientPhone)}<br>${escapeHtml(quote.clientEmail)}</p>
   <h2>Chantier</h2>
-  <p>${nl2br(quote.siteAddress)}<br>Pièce : ${escapeHtml(displayRoomType(quote))}<br>Support : ${escapeHtml(quote.supportState)} - Préparation : ${escapeHtml(quote.prepNeeded)}</p>
+  <p>${nl2br(quote.siteAddress)}<br>Pièce : ${escapeHtml(displayRoomType(quote))}<br>Support : ${escapeHtml(quote.supportState)} - Préparation : ${escapeHtml(quote.prepNeeded)}${roomsListHtml(quote.rooms)}</p>
   <h2>Prestations</h2>
   <table><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>PU HT</th><th>Total HT</th></tr></thead><tbody>${rows}</tbody></table>
   ${quote.quoteObservations ? `<h2>Observations</h2><p>${nl2br(quote.quoteObservations)}</p>` : ""}
