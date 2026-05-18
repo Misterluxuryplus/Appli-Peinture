@@ -2,7 +2,8 @@ const STORAGE = {
   company: "willpaint.company",
   current: "willpaint.currentQuote",
   history: "willpaint.history",
-  counter: "willpaint.counter"
+  counter: "willpaint.counter",
+  counters: "willpaint.counters"
 };
 
 const DEFAULT_COMPANY = {
@@ -38,6 +39,24 @@ const AVAILABLE_SERVICES = [
   "Autre / Ligne libre"
 ];
 
+const ROOM_TYPES = [
+  "Salon",
+  "Salle à manger",
+  "Chambre",
+  "Cuisine",
+  "Salle de bain",
+  "WC",
+  "Couloir",
+  "Entrée",
+  "Bureau",
+  "Escalier",
+  "Garage",
+  "Cave",
+  "Buanderie",
+  "Extérieur",
+  "Autre / Libre"
+];
+
 const quoteFields = [
   "clientName",
   "clientPhone",
@@ -45,8 +64,11 @@ const quoteFields = [
   "clientAddress",
   "quoteDate",
   "quoteNumber",
+  "documentStatus",
+  "testMode",
   "siteAddress",
   "roomType",
+  "roomTypeCustom",
   "wallSurface",
   "ceilingSurface",
   "coatCount",
@@ -107,7 +129,6 @@ function bindEvents() {
     saveCurrentQuietly();
   });
 
-  document.querySelector("#calculateBtn").addEventListener("click", calculateAndRender);
   document.querySelector("#saveQuoteBtn").addEventListener("click", saveQuote);
   document.querySelector("#newQuoteBtn").addEventListener("click", newQuote);
   document.querySelector("#clearCurrentBtn").addEventListener("click", clearCurrentQuote);
@@ -117,7 +138,13 @@ function bindEvents() {
   document.querySelector("#jsonBtn").addEventListener("click", exportJson);
   document.querySelector("#csvBtn").addEventListener("click", exportCsv);
   document.querySelector("#photoInput").addEventListener("change", handlePhotoInput);
+  document.querySelector("#documentStatus").addEventListener("change", updateDocumentNumberForStatus);
+  document.querySelector("#testMode").addEventListener("change", updateTestModeBanner);
+  document.querySelector("#roomType").addEventListener("change", updateRoomTypeCustomVisibility);
   addSelectedServiceBtn.addEventListener("click", addSelectedService);
+  document.querySelector("#validateOfficialBtn").addEventListener("click", validateOfficialDocument);
+  document.querySelector("#exportBackupBtn").addEventListener("click", exportBackup);
+  document.querySelector("#importBackupInput").addEventListener("change", importBackup);
   document.querySelector("#saveCompanyBtn").addEventListener("click", saveCompanySettings);
   document.querySelector("#resetCompanyBtn").addEventListener("click", resetCompanySettings);
   document.querySelector("#companyLogo").addEventListener("change", handleCompanyLogo);
@@ -253,26 +280,39 @@ function renderHeaderLogo(company) {
 
 function startQuote(savedQuote) {
   const quote = savedQuote || createBlankQuote();
+  quote.documentStatus = quote.documentStatus || (documentKindFromNumber(quote.quoteNumber) === "FAC" ? "facture" : "devis");
+  quote.roomTypeCustom = quote.roomTypeCustom || "";
+  preserveCustomRoomType(quote);
   quoteFields.forEach((id) => {
-    if (quote[id] !== undefined) document.querySelector(`#${id}`).value = quote[id];
+    const field = document.querySelector(`#${id}`);
+    if (!field || quote[id] === undefined) return;
+    if (field.type === "checkbox") field.checked = Boolean(quote[id]);
+    else field.value = quote[id];
   });
+  updateRoomTypeCustomVisibility();
+  updateTestModeBanner();
   currentPhotos = quote.photos || [];
   linesBody.innerHTML = "";
   (quote.lines || []).forEach(addLine);
   syncSurfaceLines();
   renderPhotos();
+  saveCurrentQuietly();
 }
 
 function createBlankQuote() {
   return {
     quoteDate: new Date().toISOString().slice(0, 10),
-    quoteNumber: nextQuoteNumber(false),
+    quoteNumber: "BROUILLON",
+    documentStatus: "devis",
+    testMode: false,
+    isOfficial: false,
     clientName: "",
     clientPhone: "",
     clientEmail: "",
     clientAddress: "",
     siteAddress: "",
     roomType: "",
+    roomTypeCustom: "",
     wallSurface: 0,
     ceilingSurface: 0,
     coatCount: 2,
@@ -284,6 +324,39 @@ function createBlankQuote() {
     lines: [],
     photos: []
   };
+}
+
+function preserveCustomRoomType(quote) {
+  if (!quote.roomType || ROOM_TYPES.includes(quote.roomType) || quote.roomTypeCustom) return;
+  quote.roomTypeCustom = quote.roomType;
+  quote.roomType = "Autre / Libre";
+}
+
+function updateRoomTypeCustomVisibility() {
+  const customWrap = document.querySelector("#roomTypeCustomWrap");
+  const customInput = document.querySelector("#roomTypeCustom");
+  const isCustom = document.querySelector("#roomType").value === "Autre / Libre";
+  customWrap.classList.toggle("hidden-field", !isCustom);
+  if (!isCustom) customInput.value = "";
+}
+
+function updateDocumentNumberForStatus() {
+  const numberInput = document.querySelector("#quoteNumber");
+  const currentNumber = numberInput.value.trim();
+  if (!isOfficialNumber(currentNumber)) {
+    numberInput.value = document.querySelector("#testMode").checked ? "TEST - BROUILLON" : "BROUILLON";
+  }
+}
+
+function updateTestModeBanner() {
+  const isTest = document.querySelector("#testMode").checked;
+  document.querySelector("#testModeBanner").classList.toggle("hidden-field", !isTest);
+  if (isTest && !String(document.querySelector("#quoteNumber").value).startsWith("TEST-")) {
+    document.querySelector("#quoteNumber").value = "TEST - BROUILLON";
+  }
+  if (!isTest && !isOfficialNumber(document.querySelector("#quoteNumber").value)) {
+    document.querySelector("#quoteNumber").value = "BROUILLON";
+  }
 }
 
 function addLine(line) {
@@ -402,10 +475,16 @@ function syncSurfaceLines() {
 function collectQuote() {
   const quote = {};
   quoteFields.forEach((id) => {
-    quote[id] = document.querySelector(`#${id}`).value.trim();
+    const field = document.querySelector(`#${id}`);
+    quote[id] = field.type === "checkbox" ? field.checked : field.value.trim();
   });
 
   quote.company = loadCompany();
+  quote.roomTypeLabel = displayRoomType(quote);
+  quote.documentKind = isOfficialNumber(quote.quoteNumber) ? documentKindFromNumber(quote.quoteNumber) : documentKindFromStatus(quote.documentStatus);
+  quote.documentTitle = documentTitle(quote);
+  quote.isOfficial = isOfficialNumber(quote.quoteNumber) && !quote.testMode;
+  quote.isTest = Boolean(quote.testMode);
   quote.lines = getLineRows().map((row) => {
     const quantity = parseFloat(row.querySelector(".line-quantity").value) || 0;
     const unitPrice = parseFloat(row.querySelector(".line-price").value) || 0;
@@ -428,6 +507,43 @@ function collectQuote() {
   quote.totalTtc = quote.totalHt + quote.totalVat;
   quote.savedAt = new Date().toISOString();
   return quote;
+}
+
+function displayRoomType(quote) {
+  if (quote.roomType === "Autre / Libre") return quote.roomTypeCustom || "";
+  return quote.roomType || "";
+}
+
+function documentKindFromStatus(status) {
+  return ["facture", "payé"].includes(status) ? "FAC" : "DEV";
+}
+
+function documentKindFromNumber(number) {
+  const match = String(number || "").match(/^(DEV|FAC)-\d{4}-\d+$/);
+  return match ? match[1] : "DEV";
+}
+
+function documentTitle(quote) {
+  return (quote.documentKind || documentKindFromStatus(quote.documentStatus)) === "FAC" ? "FACTURE" : "DEVIS";
+}
+
+function statusLabel(status) {
+  const labels = {
+    devis: "Devis",
+    facture: "Facture",
+    payé: "Payé",
+    annulé: "Annulé"
+  };
+  return labels[status] || "Devis";
+}
+
+function isOfficialNumber(number) {
+  return /^(DEV|FAC)-\d{4}-\d{4,}$/.test(String(number || ""));
+}
+
+function createTestNumber(kind) {
+  const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+  return `TEST-${kind}-${stamp}`;
 }
 
 function calculateAndRender() {
@@ -464,6 +580,9 @@ function renderPreview(quote) {
   const photos = quote.photos.length
     ? `<section class="doc-block"><h3>Photos chantier</h3><div class="doc-photo-grid">${quote.photos.map((photo) => `<img src="${photo.src}" alt="${escapeHtml(photo.caption || "Photo chantier")}">`).join("")}</div></section>`
     : "";
+  const modeBanner = quote.testMode
+    ? `<div class="doc-mode-banner">MODE TEST — document non officiel</div>`
+    : (!quote.isOfficial ? `<div class="doc-draft-banner">BROUILLON — document non validé officiellement</div>` : "");
 
   preview.innerHTML = `
     <div class="doc-header">
@@ -475,11 +594,12 @@ function renderPreview(quote) {
         </div>
       </div>
       <div class="quote-title">
-        <h2>DEVIS</h2>
+        <h2>${escapeHtml(quote.documentTitle)}</h2>
         <p><strong>N° ${escapeHtml(quote.quoteNumber)}</strong><br>Date : ${formatDate(quote.quoteDate)}</p>
       </div>
     </div>
 
+    ${modeBanner}
     <div class="doc-grid">
       <section class="doc-block">
         <h3>Client</h3>
@@ -487,7 +607,7 @@ function renderPreview(quote) {
       </section>
       <section class="doc-block">
         <h3>Chantier</h3>
-        <p>${nl2br(quote.siteAddress)}<br>Type de pièce : ${escapeHtml(quote.roomType)}<br>Murs : ${formatNumber(quote.wallSurface)} m² | Plafond : ${formatNumber(quote.ceilingSurface)} m²<br>Couches : ${escapeHtml(quote.coatCount)} | Support : ${escapeHtml(quote.supportState)} | Préparation : ${escapeHtml(quote.prepNeeded)}</p>
+        <p>${nl2br(quote.siteAddress)}<br>Type de pièce : ${escapeHtml(quote.roomTypeLabel)}<br>Murs : ${formatNumber(quote.wallSurface)} m² | Plafond : ${formatNumber(quote.ceilingSurface)} m²<br>Couches : ${escapeHtml(quote.coatCount)} | Support : ${escapeHtml(quote.supportState)} | Préparation : ${escapeHtml(quote.prepNeeded)}</p>
       </section>
     </div>
 
@@ -560,6 +680,40 @@ function renderPhotos() {
 function saveQuote() {
   const quote = collectQuote();
   localStorage.setItem(STORAGE.current, JSON.stringify(quote));
+  alert("Brouillon sauvegardé sur cet appareil. Aucun numéro officiel n'a été utilisé.");
+}
+
+function validateOfficialDocument() {
+  let quote = collectQuote();
+  const kind = documentKindFromStatus(quote.documentStatus);
+
+  if (quote.testMode) {
+    document.querySelector("#quoteNumber").value = createTestNumber(kind);
+    quote = collectQuote();
+    quote.isOfficial = false;
+    quote.isTest = true;
+    saveHistoryDocument(quote);
+    if (confirm("Document enregistré en MODE TEST. Aucun numéro officiel n'a été utilisé. Voulez-vous télécharger le PDF de test ?")) generatePdf();
+    return;
+  }
+
+  if (!isOfficialNumber(quote.quoteNumber)) {
+    document.querySelector("#quoteNumber").value = generateDocumentNumber(kind);
+    quote = collectQuote();
+  }
+
+  quote.isOfficial = true;
+  quote.isTest = false;
+  saveHistoryDocument(quote);
+  if (confirm(`${statusLabel(quote.documentStatus)} ${quote.quoteNumber} validé officiellement. Voulez-vous télécharger le PDF maintenant ?`)) {
+    generatePdf();
+  } else {
+    alert("Pensez à exporter une sauvegarde régulièrement. Le PDF reste la vraie trace à conserver.");
+  }
+}
+
+function saveHistoryDocument(quote) {
+  localStorage.setItem(STORAGE.current, JSON.stringify(quote));
   const history = readJson(STORAGE.history, []);
   const existingIndex = history.findIndex((item) => item.quoteNumber === quote.quoteNumber);
   const summary = {
@@ -567,15 +721,17 @@ function saveQuote() {
     quoteDate: quote.quoteDate,
     clientName: quote.clientName,
     totalTtc: quote.totalTtc,
+    documentStatus: quote.documentStatus,
+    documentKind: quote.documentKind,
+    isOfficial: quote.isOfficial,
+    isTest: quote.isTest,
     savedAt: quote.savedAt,
     quote
   };
   if (existingIndex >= 0) history[existingIndex] = summary;
   else history.unshift(summary);
-  localStorage.setItem(STORAGE.history, JSON.stringify(history.slice(0, 50)));
-  if (existingIndex < 0) nextQuoteNumber(true);
+  localStorage.setItem(STORAGE.history, JSON.stringify(history));
   refreshHistory();
-  alert("Devis sauvegardé dans l'historique.");
 }
 
 function saveCurrentQuietly() {
@@ -605,14 +761,14 @@ function refreshHistory() {
   const history = readJson(STORAGE.history, []);
   const list = document.querySelector("#historyList");
   if (!history.length) {
-    list.innerHTML = `<p class="muted">Aucun devis sauvegardé pour le moment.</p>`;
+    list.innerHTML = `<p class="muted">Aucun devis ou facture sauvegardé pour le moment.</p>`;
     return;
   }
   list.innerHTML = history.map((item) => `
     <article class="history-item" data-quote-number="${escapeAttribute(item.quoteNumber)}">
       <div>
         <strong>${escapeHtml(item.quoteNumber)} - ${escapeHtml(item.clientName || "Client non renseigné")}</strong>
-        <p>${formatDate(item.quoteDate)} · ${euros.format(item.totalTtc || 0)}</p>
+        <p class="history-meta">${formatDate(item.quoteDate)} · ${euros.format(item.totalTtc || 0)} · <span class="status-badge">${escapeHtml(historyStatusLabel(item))}</span></p>
       </div>
       <div class="history-actions">
         <button class="secondary load-history" type="button">Ouvrir</button>
@@ -656,19 +812,31 @@ function findHistoryQuote(button) {
   return item ? item.quote : null;
 }
 
+function historyStatusLabel(item) {
+  const label = statusLabel(item.documentStatus || item.quote?.documentStatus || "devis");
+  if (item.isTest || item.quote?.isTest || item.quote?.testMode) return `${label} test`;
+  if (!(item.isOfficial || item.quote?.isOfficial)) return `${label} brouillon`;
+  return label;
+}
+
 function generatePdf() {
   calculateAndRender();
-  alert("Dans la fenêtre d'impression, choisissez 'Enregistrer au format PDF'.");
+  const quote = collectQuote();
+  const traceText = quote.isOfficial
+    ? "Conservez ce PDF comme trace officielle du devis ou de la facture."
+    : "Ce PDF est un brouillon ou un test : il n'a pas de numéro officiel.";
+  alert(`Dans la fenêtre d'impression, choisissez 'Enregistrer au format PDF'. ${traceText}`);
   window.print();
 }
 
 function sendMail() {
   const quote = collectQuote();
-  const subject = `Devis ${quote.quoteNumber} - Will'Paint`;
+  const title = quote.documentTitle === "FACTURE" ? "Facture" : "Devis";
+  const subject = `${title} ${quote.quoteNumber} - Will'Paint`;
   const body = [
     `Bonjour ${quote.clientName || ""},`,
     "",
-    `Veuillez trouver le devis ${quote.quoteNumber} d'un montant de ${euros.format(quote.totalTtc)} TTC.`,
+    `Veuillez trouver le ${title.toLowerCase()} ${quote.quoteNumber} d'un montant de ${euros.format(quote.totalTtc)} TTC.`,
     "",
     "Vous pouvez répondre à ce message pour toute question.",
     "",
@@ -704,6 +872,115 @@ function exportCsv() {
   downloadFile(`${quote.quoteNumber}.csv`, csv, "text/csv;charset=utf-8");
 }
 
+function exportBackup() {
+  const history = readJson(STORAGE.history, []);
+  const devis = history
+    .filter((item) => (item.documentKind || item.quote?.documentKind || documentKindFromStatus(item.documentStatus || item.quote?.documentStatus)) === "DEV")
+    .map((item) => item.quote || item);
+  const factures = history
+    .filter((item) => (item.documentKind || item.quote?.documentKind || documentKindFromStatus(item.documentStatus || item.quote?.documentStatus)) === "FAC")
+    .map((item) => item.quote || item);
+  const backup = {
+    version: "1.9",
+    exportedAt: new Date().toISOString(),
+    devis,
+    factures,
+    clients: extractClients(history),
+    entreprise: loadCompany(),
+    historique: history,
+    history,
+    numerosDejaUtilises: usedNumbersFromHistory(history),
+    dernierNumeroUtilise: loadCounters(),
+    currentQuote: loadCurrentQuote()
+  };
+
+  const date = new Date().toISOString().slice(0, 10);
+  downloadFile(`willpaint-sauvegarde-${date}.json`, JSON.stringify(backup, null, 2), "application/json");
+}
+
+async function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const backup = JSON.parse(await file.text());
+    const importedHistory = historyFromBackup(backup);
+    if (!importedHistory.length) {
+      alert("Aucun devis ou facture trouvé dans cette sauvegarde.");
+      return;
+    }
+
+    if (!confirm(`Importer ${importedHistory.length} document(s) depuis cette sauvegarde ? Les données de l'historique local seront remplacées.`)) return;
+
+    const importedCounters = maxCounters(
+      backup.dernierNumeroUtilise,
+      backup.lastNumbers,
+      countersFromHistory(importedHistory)
+    );
+    const protectedCounters = maxCounters(loadCounters(), importedCounters);
+    localStorage.setItem(STORAGE.history, JSON.stringify(importedHistory));
+    saveCounters(protectedCounters);
+    if (backup.currentQuote) localStorage.setItem(STORAGE.current, JSON.stringify(backup.currentQuote));
+    refreshHistory();
+    alert("Sauvegarde importée. Les compteurs ont été protégés pour ne jamais revenir en arrière.");
+  } catch {
+    alert("Impossible d'importer cette sauvegarde. Vérifiez que le fichier est bien un JSON Will'Paint.");
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function historyFromBackup(backup) {
+  if (Array.isArray(backup.history)) return backup.history.map(normalizeHistoryItem);
+  if (Array.isArray(backup.historique)) return backup.historique.map(normalizeHistoryItem);
+  return [...(backup.devis || []), ...(backup.factures || [])].map((quote) => normalizeHistoryItem({ quote }));
+}
+
+function normalizeHistoryItem(item) {
+  const quote = item.quote || item;
+  const status = quote.documentStatus || item.documentStatus || (documentKindFromNumber(quote.quoteNumber) === "FAC" ? "facture" : "devis");
+  quote.documentStatus = status;
+  quote.documentKind = isOfficialNumber(quote.quoteNumber) ? documentKindFromNumber(quote.quoteNumber) : documentKindFromStatus(status);
+  quote.documentTitle = documentTitle(quote);
+  quote.roomTypeLabel = displayRoomType(quote);
+  quote.isTest = Boolean(quote.isTest || quote.testMode || item.isTest);
+  quote.isOfficial = Boolean((quote.isOfficial || item.isOfficial || isOfficialNumber(quote.quoteNumber)) && !quote.isTest);
+  return {
+    quoteNumber: quote.quoteNumber,
+    quoteDate: quote.quoteDate,
+    clientName: quote.clientName,
+    totalTtc: quote.totalTtc || 0,
+    documentStatus: status,
+    documentKind: quote.documentKind,
+    isOfficial: quote.isOfficial,
+    isTest: quote.isTest,
+    savedAt: item.savedAt || quote.savedAt || new Date().toISOString(),
+    quote
+  };
+}
+
+function extractClients(history) {
+  const clients = new Map();
+  history.forEach((item) => {
+    const quote = item.quote || item;
+    const key = [quote.clientName, quote.clientEmail, quote.clientPhone].join("|");
+    if (!quote.clientName || clients.has(key)) return;
+    clients.set(key, {
+      name: quote.clientName,
+      address: quote.clientAddress,
+      phone: quote.clientPhone,
+      email: quote.clientEmail
+    });
+  });
+  return Array.from(clients.values());
+}
+
+function usedNumbersFromHistory(history) {
+  return history
+    .map((item) => item.quoteNumber || item.quote?.quoteNumber)
+    .filter((number) => isOfficialNumber(number));
+}
+
 function exportLibreOfficeHtml() {
   const quote = collectQuote();
   downloadFile(`${quote.quoteNumber}-writer.html`, buildLibreOfficeHtml(quote), "text/html;charset=utf-8");
@@ -730,12 +1007,12 @@ function buildLibreOfficeHtml(quote) {
   </style>
 </head>
 <body>
-  <h1>DEVIS ${escapeHtml(quote.quoteNumber)}</h1>
+  <h1>${escapeHtml(quote.documentTitle || documentTitle(quote))} ${escapeHtml(quote.quoteNumber)}</h1>
   <p><strong>${escapeHtml(quote.company.name)}</strong><br>${nl2br(quote.company.address)}<br>${escapeHtml(quote.company.phone)}<br>${escapeHtml(quote.company.email)}<br>SIRET : ${escapeHtml(quote.company.siret)}</p>
   <h2>Client</h2>
   <p><strong>${escapeHtml(quote.clientName)}</strong><br>${nl2br(quote.clientAddress)}<br>${escapeHtml(quote.clientPhone)}<br>${escapeHtml(quote.clientEmail)}</p>
   <h2>Chantier</h2>
-  <p>${nl2br(quote.siteAddress)}<br>Pièce : ${escapeHtml(quote.roomType)}<br>Support : ${escapeHtml(quote.supportState)} - Préparation : ${escapeHtml(quote.prepNeeded)}</p>
+  <p>${nl2br(quote.siteAddress)}<br>Pièce : ${escapeHtml(displayRoomType(quote))}<br>Support : ${escapeHtml(quote.supportState)} - Préparation : ${escapeHtml(quote.prepNeeded)}</p>
   <h2>Prestations</h2>
   <table><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>PU HT</th><th>Total HT</th></tr></thead><tbody>${rows}</tbody></table>
   ${quote.quoteObservations ? `<h2>Observations</h2><p>${nl2br(quote.quoteObservations)}</p>` : ""}
@@ -751,10 +1028,49 @@ function buildLibreOfficeHtml(quote) {
 </html>`;
 }
 
-function nextQuoteNumber(increment) {
-  const current = parseInt(localStorage.getItem(STORAGE.counter) || "1", 10);
-  if (increment) localStorage.setItem(STORAGE.counter, String(current + 1));
-  return `WP-${new Date().getFullYear()}-${String(current).padStart(4, "0")}`;
+function generateDocumentNumber(kind) {
+  const counters = loadCounters();
+  const key = kind === "FAC" ? "FAC" : "DEV";
+  counters[key] = Math.max(0, parseInt(counters[key] || 0, 10)) + 1;
+  saveCounters(counters);
+  return `${key}-${new Date().getFullYear()}-${String(counters[key]).padStart(4, "0")}`;
+}
+
+function loadCounters() {
+  const oldCounter = parseInt(localStorage.getItem(STORAGE.counter) || "0", 10);
+  const migrated = oldCounter > 0 ? { DEV: Math.max(0, oldCounter - 1), FAC: 0 } : { DEV: 0, FAC: 0 };
+  return maxCounters(
+    { DEV: 0, FAC: 0 },
+    migrated,
+    readJson(STORAGE.counters, { DEV: 0, FAC: 0 }),
+    countersFromHistory(readJson(STORAGE.history, []))
+  );
+}
+
+function saveCounters(counters) {
+  localStorage.setItem(STORAGE.counters, JSON.stringify({
+    DEV: Math.max(0, parseInt(counters.DEV || 0, 10)),
+    FAC: Math.max(0, parseInt(counters.FAC || 0, 10))
+  }));
+}
+
+function maxCounters(...sources) {
+  return sources.reduce((result, source) => ({
+    DEV: Math.max(result.DEV, parseInt(source?.DEV || 0, 10)),
+    FAC: Math.max(result.FAC, parseInt(source?.FAC || 0, 10))
+  }), { DEV: 0, FAC: 0 });
+}
+
+function countersFromHistory(history) {
+  return (history || []).reduce((counters, item) => {
+    const match = String(item.quoteNumber || item.quote?.quoteNumber || "").match(/^(DEV|FAC)-\d{4}-(\d+)$/);
+    if (match) counters[match[1]] = Math.max(counters[match[1]], parseInt(match[2], 10));
+    return counters;
+  }, { DEV: 0, FAC: 0 });
+}
+
+function isHistoryNumber(number) {
+  return readJson(STORAGE.history, []).some((item) => item.quoteNumber === number);
 }
 
 function getLineRows() {

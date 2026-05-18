@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css?v=1.6-select">
+    <link rel="stylesheet" href="style.css?v=1.9-draft-test">
   </head>
   <body>
     <header class="app-header">
@@ -21,7 +21,7 @@
         <div>
           <p class="eyebrow">Application locale de devis</p>
           <h1>Will'Paint</h1>
-          <p class="app-version">Version 1.6</p>
+          <p class="app-version">Version 1.9</p>
         </div>
       </div>
       <nav class="top-nav" aria-label="Navigation principale">
@@ -103,7 +103,28 @@
                   </label>
                   <label>
                     Type de pièce
-                    <input id="roomType" name="roomType" placeholder="Salon, cuisine, façade...">
+                    <select id="roomType" name="roomType">
+                      <option value="">Choisir une pièce</option>
+                      <option>Salon</option>
+                      <option>Salle à manger</option>
+                      <option>Chambre</option>
+                      <option>Cuisine</option>
+                      <option>Salle de bain</option>
+                      <option>WC</option>
+                      <option>Couloir</option>
+                      <option>Entrée</option>
+                      <option>Bureau</option>
+                      <option>Escalier</option>
+                      <option>Garage</option>
+                      <option>Cave</option>
+                      <option>Buanderie</option>
+                      <option>Extérieur</option>
+                      <option>Autre / Libre</option>
+                    </select>
+                  </label>
+                  <label id="roomTypeCustomWrap" class="hidden-field">
+                    Type de pièce personnalisé
+                    <input id="roomTypeCustom" name="roomTypeCustom" placeholder="Ex : atelier, véranda, local technique">
                   </label>
                   <label>
                     Surface murs en m²
@@ -160,9 +181,6 @@
                   </table>
                 </div>
                 <div id="mobileLinesBody" class="mobile-lines" aria-label="Prestations en cartes mobiles"></div>
-                <div class="line-actions">
-                  <button id="calculateBtn" class="primary" type="button">Calculer</button>
-                </div>
               </section>
 
               <section class="form-section" data-mobile-step="4">
@@ -212,6 +230,20 @@
                   Observations / précisions du devis
                   <textarea id="quoteObservations" name="quoteObservations" rows="3" placeholder="Exemple : travaux sous réserve de support sain, déplacement mobilier lourd non compris..."></textarea>
                 </label>
+                <label>
+                  Statut
+                  <select id="documentStatus" name="documentStatus">
+                    <option value="devis">Devis</option>
+                    <option value="facture">Facture</option>
+                    <option value="payé">Payé</option>
+                    <option value="annulé">Annulé</option>
+                  </select>
+                </label>
+                <label class="test-mode-toggle">
+                  <input id="testMode" name="testMode" type="checkbox">
+                  Mode test
+                </label>
+                <p id="testModeBanner" class="test-mode-banner hidden-field">MODE TEST — document non officiel</p>
                 <label class="wide">
                   Conditions
                   <textarea id="conditions" name="conditions" rows="4">Devis valable 30 jours. Acompte de 30 % à la commande. Solde à la réception des travaux.</textarea>
@@ -227,8 +259,9 @@
 
           <aside class="panel preview-panel" data-mobile-step="5" aria-label="Aperçu du devis">
             <div class="preview-toolbar">
-              <button id="saveQuoteBtn" class="primary" type="button">Sauvegarder devis</button>
-              <button id="pdfBtn" class="primary" type="button">Générer devis PDF</button>
+              <button id="saveQuoteBtn" class="secondary" type="button">Sauvegarder brouillon</button>
+              <button id="validateOfficialBtn" class="primary" type="button">Valider officiellement</button>
+              <button id="pdfBtn" class="primary" type="button">Générer PDF</button>
               <button id="mailBtn" class="secondary" type="button">Envoyer au client</button>
               <button id="libreOfficeBtn" class="secondary" type="button">LibreOffice</button>
               <button id="jsonBtn" class="secondary" type="button">JSON</button>
@@ -245,10 +278,19 @@
             <div class="section-heading">
               <div>
                 <p class="eyebrow dark">Sauvegarde locale</p>
-                <h2>Historique des devis</h2>
+                <h2>Historique des devis et factures</h2>
               </div>
-              <button id="clearCurrentBtn" class="secondary" type="button">Vider le devis courant</button>
+              <div class="history-tools">
+                <button id="exportBackupBtn" class="secondary" type="button">Exporter sauvegarde</button>
+                <label class="secondary import-backup-button">
+                  Importer sauvegarde
+                  <input id="importBackupInput" type="file" accept="application/json,.json">
+                </label>
+                <button id="clearCurrentBtn" class="secondary" type="button">Vider le devis courant</button>
+              </div>
             </div>
+            <p class="backup-warning">Attention : les données sont enregistrées sur cet appareil. Pensez à exporter une sauvegarde régulièrement pour ne rien perdre.</p>
+            <p class="backup-help">Pour transférer la sauvegarde du téléphone vers l’ordinateur : exportez le fichier JSON, puis envoyez-le par email, Google Drive, iCloud Drive, câble USB, Bluetooth, AirDrop ou WhatsApp selon votre appareil.</p>
             <div id="historyList" class="history-list"></div>
           </section>
         </div>
@@ -298,7 +340,7 @@
       </section>
     </main>
 
-    <footer class="mobile-version">Version 1.6 - Menu déroulant simplifié</footer>
+    <footer class="mobile-version">Version 1.9 - Brouillon et mode test</footer>
 
     <template id="lineTemplate">
       <tr>
@@ -320,6 +362,6 @@
       </tr>
     </template>
 
-    <script src="app.js?v=1.6-select"></script>
+    <script src="app.js?v=1.9-draft-test"></script>
   </body>
 </html>
