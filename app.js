@@ -65,6 +65,7 @@ const quoteFields = [
   "clientEmail",
   "clientAddress",
   "quoteDate",
+  "quoteValidityDate",
   "quoteNumber",
   "documentType",
   "documentStatus",
@@ -122,6 +123,9 @@ function bindEvents() {
     if (["wallSurface", "ceilingSurface", "coatCount"].includes(event.target.id)) {
       syncSurfaceLines();
       renderMobileLineCards();
+    }
+    if (event.target.id === "quoteDate") {
+      updateValidityFromQuoteDate();
     }
     calculateAndRender();
     saveCurrentQuietly();
@@ -289,6 +293,7 @@ function renderHeaderLogo(company) {
 function startQuote(savedQuote) {
   const quote = savedQuote || createBlankQuote();
   normalizeDocumentState(quote);
+  quote.quoteValidityDate = quote.quoteValidityDate || defaultValidityDate(quote.quoteDate);
   quote.roomTypeCustom = quote.roomTypeCustom || "";
   preserveCustomRoomType(quote);
   quoteFields.forEach((id) => {
@@ -308,8 +313,10 @@ function startQuote(savedQuote) {
 }
 
 function createBlankQuote() {
+  const today = todayInputDate();
   return {
-    quoteDate: new Date().toISOString().slice(0, 10),
+    quoteDate: today,
+    quoteValidityDate: defaultValidityDate(today),
     documentId: createDraftId(),
     quoteNumber: "DEVIS BROUILLON",
     documentType: "devis",
@@ -333,6 +340,35 @@ function createBlankQuote() {
     lines: [],
     photos: []
   };
+}
+
+function updateValidityFromQuoteDate() {
+  const quoteDate = document.querySelector("#quoteDate").value;
+  document.querySelector("#quoteValidityDate").value = defaultValidityDate(quoteDate);
+}
+
+function defaultValidityDate(dateValue) {
+  return addDays(dateValue || todayInputDate(), 30);
+}
+
+function addDays(dateValue, days) {
+  const [year, month, day] = String(dateValue).split("-").map(Number);
+  const date = Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)
+    ? new Date(year, month - 1, day)
+    : new Date();
+  date.setDate(date.getDate() + days);
+  return formatInputDate(date);
+}
+
+function todayInputDate() {
+  return formatInputDate(new Date());
+}
+
+function formatInputDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function preserveCustomRoomType(quote) {
@@ -719,6 +755,9 @@ function renderPreview(quote) {
     ? `<section class="doc-block"><h3>Photos chantier</h3><div class="doc-photo-grid">${quote.photos.map((photo) => `<img src="${photo.src}" alt="${escapeHtml(photo.caption || "Photo chantier")}">`).join("")}</div></section>`
     : "";
   const modeBanner = documentStatusBanner(quote);
+  const validityLine = quote.documentType === "devis"
+    ? `<br>Validité du devis : ${formatDate(quote.quoteValidityDate)}`
+    : "";
 
   preview.innerHTML = `
     <div class="doc-header">
@@ -731,7 +770,7 @@ function renderPreview(quote) {
       </div>
       <div class="quote-title">
         <h2>${escapeHtml(quote.documentTitle)}</h2>
-        <p><strong>N° ${escapeHtml(quote.quoteNumber)}</strong><br>Date : ${formatDate(quote.quoteDate)}</p>
+        <p><strong>N° ${escapeHtml(quote.quoteNumber)}</strong><br>Date : ${formatDate(quote.quoteDate)}${validityLine}</p>
       </div>
     </div>
 
@@ -1210,6 +1249,7 @@ function buildLibreOfficeHtml(quote) {
 <body>
   <h1>${escapeHtml(quote.documentTitle || documentTitle(quote))} ${escapeHtml(quote.quoteNumber)}</h1>
   <p><strong>${escapeHtml(quote.company.name)}</strong><br>${nl2br(quote.company.address)}<br>${escapeHtml(quote.company.phone)}<br>${escapeHtml(quote.company.email)}<br>SIRET : ${escapeHtml(quote.company.siret)}</p>
+  ${quote.documentType === "devis" ? `<p><strong>Date du devis :</strong> ${formatDate(quote.quoteDate)}<br><strong>Validité du devis :</strong> ${formatDate(quote.quoteValidityDate)}</p>` : `<p><strong>Date :</strong> ${formatDate(quote.quoteDate)}</p>`}
   <h2>Client</h2>
   <p><strong>${escapeHtml(quote.clientName)}</strong><br>${nl2br(quote.clientAddress)}<br>${escapeHtml(quote.clientPhone)}<br>${escapeHtml(quote.clientEmail)}</p>
   <h2>Chantier</h2>

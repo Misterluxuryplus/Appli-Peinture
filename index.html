@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/willpaint-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/willpaint-icon.svg">
-    <link rel="stylesheet" href="style.css?v=2.3-integer-qty">
+    <link rel="stylesheet" href="style.css?v=2.4-validity-date">
   </head>
   <body>
     <header class="app-header">
@@ -21,7 +21,7 @@
         <div>
           <p class="eyebrow">Application locale de devis</p>
           <h1>Will'Paint</h1>
-          <p class="app-version">Version 2.3</p>
+          <p class="app-version">Version 2.4</p>
         </div>
       </div>
       <nav class="top-nav" aria-label="Navigation principale">
@@ -80,6 +80,10 @@
                   <label>
                     Date du devis
                     <input id="quoteDate" name="quoteDate" type="date" required>
+                  </label>
+                  <label>
+                    Validité du devis jusqu'au
+                    <input id="quoteValidityDate" name="quoteValidityDate" type="date">
                   </label>
                   <label>
                     Numéro document
@@ -344,7 +348,7 @@
       </section>
     </main>
 
-    <footer class="mobile-version">Version 2.3 - Quantités entières</footer>
+    <footer class="mobile-version">Version 2.4 - Date validité devis</footer>
 
     <template id="lineTemplate">
       <tr>
@@ -369,6 +373,6 @@
       </tr>
     </template>
 
-    <script src="app.js?v=2.3-integer-qty"></script>
+    <script src="app.js?v=2.4-validity-date"></script>
   </body>
 </html>
