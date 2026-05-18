@@ -479,6 +479,13 @@ textarea:focus {
   font-size: 1.15rem;
 }
 
+.quantity-message {
+  min-height: 16px;
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .line-table {
   width: 100%;
   border-collapse: collapse;

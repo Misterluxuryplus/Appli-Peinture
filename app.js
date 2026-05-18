@@ -84,6 +84,7 @@ const quoteFields = [
 const companyFields = ["companyName", "companyPhone", "companyEmail", "companyAddress", "companySiret"];
 
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+const QUANTITY_ERROR = "Veuillez entrer un nombre entier.";
 let currentPhotos = [];
 
 const form = document.querySelector("#quoteForm");
@@ -416,7 +417,8 @@ function addLine(line) {
   const row = lineTemplate.content.firstElementChild.cloneNode(true);
   row.dataset.kind = line.kind || "service";
   row.querySelector(".line-description").value = line.description || "";
-  row.querySelector(".line-quantity").value = line.quantity || 0;
+  row.querySelector(".line-quantity").value = normalizeQuantity(line.quantity);
+  bindQuantityInput(row.querySelector(".line-quantity"));
   row.querySelector(".line-unit").value = line.unit || "";
   row.querySelector(".line-price").value = line.unitPrice || 0;
   row.querySelector(".remove-line").addEventListener("click", () => {
@@ -456,7 +458,8 @@ function renderMobileLineCards() {
       </label>
       <div class="mobile-line-grid">
         <label>Quantité
-          <input class="mobile-quantity" type="number" inputmode="decimal" min="0" step="0.01" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
+          <input class="mobile-quantity" type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
+          <small class="quantity-message" aria-live="polite"></small>
         </label>
         <label>Unité
           <select class="mobile-unit">${unitOptionsHtml(row.querySelector(".line-unit").value)}</select>
@@ -474,6 +477,8 @@ function renderMobileLineCards() {
       calculateAndRender();
       saveCurrentQuietly();
     });
+
+    bindQuantityInput(card.querySelector(".mobile-quantity"));
 
     card.querySelectorAll("input, .mobile-unit").forEach((input) => {
       input.addEventListener("input", () => {
@@ -496,7 +501,7 @@ function renderMobileLineCards() {
 
 function updateDesktopLineFromMobileCard(row, card) {
   row.querySelector(".line-description").value = card.querySelector(".mobile-description")?.value || "";
-  row.querySelector(".line-quantity").value = card.querySelector(".mobile-quantity")?.value || 0;
+  row.querySelector(".line-quantity").value = normalizeQuantity(card.querySelector(".mobile-quantity")?.value);
   row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "";
   row.querySelector(".line-price").value = card.querySelector(".mobile-price")?.value || 0;
 }
@@ -512,6 +517,60 @@ function updateMobileCardTotal(row, card) {
   if (total) total.textContent = row.querySelector(".line-total").textContent;
 }
 
+function bindQuantityInput(input) {
+  if (!input || input.dataset.quantityBound === "true") return;
+  input.dataset.quantityBound = "true";
+
+  input.addEventListener("beforeinput", (event) => {
+    if (event.data && /[.,\D]/.test(event.data)) {
+      event.preventDefault();
+      showQuantityMessage(input);
+    }
+  });
+
+  input.addEventListener("paste", (event) => {
+    const text = event.clipboardData?.getData("text") || "";
+    if (!/^[1-9]\d*$/.test(text.trim())) {
+      event.preventDefault();
+      showQuantityMessage(input);
+    }
+  });
+
+  input.addEventListener("input", () => {
+    const original = input.value;
+    const hasDecimal = /[.,]/.test(original);
+    const integerPart = hasDecimal ? original.split(/[.,]/)[0] : original;
+    const cleaned = integerPart.replace(/\D/g, "");
+    input.value = cleaned;
+
+    if (input.value !== original) showQuantityMessage(input);
+    if (input.value && !/^[1-9]\d*$/.test(input.value)) {
+      input.value = String(normalizeQuantity(input.value));
+      showQuantityMessage(input);
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    input.value = normalizeQuantity(input.value);
+  });
+}
+
+function normalizeQuantity(value) {
+  const text = String(value ?? "").trim();
+  if (!/^[1-9]\d*$/.test(text)) return 1;
+  return Math.max(1, parseInt(text, 10));
+}
+
+function showQuantityMessage(input) {
+  const message = input.closest("td, label")?.querySelector(".quantity-message");
+  if (!message) return;
+  message.textContent = QUANTITY_ERROR;
+  window.clearTimeout(input.quantityMessageTimer);
+  input.quantityMessageTimer = window.setTimeout(() => {
+    message.textContent = "";
+  }, 2200);
+}
+
 function syncSurfaceLines() {
   const walls = numberValue("wallSurface") * Math.max(1, numberValue("coatCount"));
   const ceiling = numberValue("ceilingSurface") * Math.max(1, numberValue("coatCount"));
@@ -519,9 +578,9 @@ function syncSurfaceLines() {
 
   getLineRows().forEach((row) => {
     const description = row.querySelector(".line-description").value.trim();
-    if (description === "Peinture murs") row.querySelector(".line-quantity").value = round(walls);
-    if (description === "Peinture plafond") row.querySelector(".line-quantity").value = round(ceiling);
-    if (description === "Sous-couche") row.querySelector(".line-quantity").value = round(totalSurface);
+    if (description === "Peinture murs") row.querySelector(".line-quantity").value = normalizeQuantity(Math.ceil(walls));
+    if (description === "Peinture plafond") row.querySelector(".line-quantity").value = normalizeQuantity(Math.ceil(ceiling));
+    if (description === "Sous-couche") row.querySelector(".line-quantity").value = normalizeQuantity(Math.ceil(totalSurface));
   });
 }
 
@@ -538,7 +597,9 @@ function collectQuote() {
   quote.documentTitle = documentTitle(quote);
   quote.isOfficial = isOfficialNumber(quote.quoteNumber) && quote.documentStatus !== "brouillon";
   quote.lines = getLineRows().map((row) => {
-    const quantity = parseFloat(row.querySelector(".line-quantity").value) || 0;
+    const quantityInput = row.querySelector(".line-quantity");
+    const quantity = normalizeQuantity(quantityInput.value);
+    quantityInput.value = quantity;
     const unitPrice = parseFloat(row.querySelector(".line-price").value) || 0;
     const total = quantity * unitPrice;
     row.querySelector(".line-total").textContent = euros.format(total);
