@@ -768,6 +768,12 @@ textarea:focus {
   min-width: 0;
 }
 
+.company-subtitle {
+  margin: -4px 0 8px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .logo-box {
   flex: 0 0 auto;
   width: 58px;

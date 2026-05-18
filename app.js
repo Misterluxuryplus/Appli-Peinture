@@ -9,11 +9,12 @@ const STORAGE = {
 
 const DEFAULT_COMPANY = {
   name: "Will'Paint",
+  subtitle: "William Brunet – Peintre professionnel",
   email: "willpaint@outlook.fr",
   phone: "06 50 80 80 83",
   address: "6 rue des Pautes\n38430 Moirans",
   siret: "10338965600010",
-  logo: ""
+  logo: "21940.jpg"
 };
 
 const AVAILABLE_SERVICES = [
@@ -82,7 +83,7 @@ const quoteFields = [
   "conditions"
 ];
 
-const companyFields = ["companyName", "companyPhone", "companyEmail", "companyAddress", "companySiret"];
+const companyFields = ["companyName", "companySubtitle", "companyPhone", "companyEmail", "companyAddress", "companySiret"];
 
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const QUANTITY_ERROR = "Veuillez entrer un nombre entier.";
@@ -120,10 +121,6 @@ function bindEvents() {
   });
 
   form.addEventListener("input", (event) => {
-    if (["wallSurface", "ceilingSurface", "coatCount"].includes(event.target.id)) {
-      syncSurfaceLines();
-      renderMobileLineCards();
-    }
     if (event.target.id === "quoteDate") {
       updateValidityFromQuoteDate();
     }
@@ -240,11 +237,18 @@ function ensureCompany() {
 }
 
 function loadCompany() {
-  return { ...DEFAULT_COMPANY, ...readJson(STORAGE.company, DEFAULT_COMPANY) };
+  const storedCompany = readJson(STORAGE.company, DEFAULT_COMPANY);
+  return {
+    ...DEFAULT_COMPANY,
+    ...storedCompany,
+    subtitle: storedCompany.subtitle || DEFAULT_COMPANY.subtitle,
+    logo: storedCompany.logo || DEFAULT_COMPANY.logo
+  };
 }
 
 function fillCompanyForm(company) {
   document.querySelector("#companyName").value = company.name;
+  document.querySelector("#companySubtitle").value = company.subtitle || DEFAULT_COMPANY.subtitle;
   document.querySelector("#companyPhone").value = company.phone;
   document.querySelector("#companyEmail").value = company.email;
   document.querySelector("#companyAddress").value = company.address;
@@ -256,11 +260,12 @@ function saveCompanySettings() {
   const previous = loadCompany();
   const company = {
     name: document.querySelector("#companyName").value.trim() || DEFAULT_COMPANY.name,
+    subtitle: document.querySelector("#companySubtitle").value.trim() || DEFAULT_COMPANY.subtitle,
     phone: document.querySelector("#companyPhone").value.trim(),
     email: document.querySelector("#companyEmail").value.trim(),
     address: document.querySelector("#companyAddress").value.trim(),
     siret: document.querySelector("#companySiret").value.trim(),
-    logo: previous.logo || ""
+    logo: previous.logo || DEFAULT_COMPANY.logo
   };
   localStorage.setItem(STORAGE.company, JSON.stringify(company));
   renderHeaderLogo(company);
@@ -287,7 +292,14 @@ async function handleCompanyLogo(event) {
 
 function renderHeaderLogo(company) {
   const headerLogo = document.querySelector("#headerLogo");
-  headerLogo.innerHTML = company.logo ? `<img src="${company.logo}" alt="Logo Will'Paint">` : initials(company.name);
+  headerLogo.innerHTML = companyLogoHtml(company);
+}
+
+function companyLogoHtml(company) {
+  const logo = company.logo || DEFAULT_COMPANY.logo;
+  if (!logo) return initials(company.name);
+
+  return `<img src="${escapeAttribute(logo)}" alt="Logo Will'Paint" onerror="this.replaceWith(document.createTextNode('${escapeAttribute(initials(company.name))}'))">`;
 }
 
 function startQuote(savedQuote) {
@@ -307,7 +319,6 @@ function startQuote(savedQuote) {
   currentPhotos = quote.photos || [];
   linesBody.innerHTML = "";
   (quote.lines || []).forEach(addLine);
-  syncSurfaceLines();
   renderPhotos();
   saveCurrentQuietly();
 }
@@ -455,7 +466,7 @@ function addLine(line) {
   row.querySelector(".line-description").value = line.description || "";
   row.querySelector(".line-quantity").value = normalizeQuantity(line.quantity);
   bindQuantityInput(row.querySelector(".line-quantity"));
-  row.querySelector(".line-unit").value = line.unit || "";
+  row.querySelector(".line-unit").value = line.unit || "forfait";
   row.querySelector(".line-price").value = line.unitPrice || 0;
   row.querySelector(".remove-line").addEventListener("click", () => {
     row.remove();
@@ -538,7 +549,7 @@ function renderMobileLineCards() {
 function updateDesktopLineFromMobileCard(row, card) {
   row.querySelector(".line-description").value = card.querySelector(".mobile-description")?.value || "";
   row.querySelector(".line-quantity").value = normalizeQuantity(card.querySelector(".mobile-quantity")?.value);
-  row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "";
+  row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "forfait";
   row.querySelector(".line-price").value = card.querySelector(".mobile-price")?.value || 0;
 }
 
@@ -607,19 +618,6 @@ function showQuantityMessage(input) {
   }, 2200);
 }
 
-function syncSurfaceLines() {
-  const walls = numberValue("wallSurface") * Math.max(1, numberValue("coatCount"));
-  const ceiling = numberValue("ceilingSurface") * Math.max(1, numberValue("coatCount"));
-  const totalSurface = walls + ceiling;
-
-  getLineRows().forEach((row) => {
-    const description = row.querySelector(".line-description").value.trim();
-    if (description === "Peinture murs") row.querySelector(".line-quantity").value = normalizeQuantity(Math.ceil(walls));
-    if (description === "Peinture plafond") row.querySelector(".line-quantity").value = normalizeQuantity(Math.ceil(ceiling));
-    if (description === "Sous-couche") row.querySelector(".line-quantity").value = normalizeQuantity(Math.ceil(totalSurface));
-  });
-}
-
 function collectQuote() {
   const quote = {};
   quoteFields.forEach((id) => {
@@ -643,7 +641,7 @@ function collectQuote() {
       kind: "service",
       description: row.querySelector(".line-description").value.trim(),
       quantity,
-      unit: row.querySelector(".line-unit").value.trim(),
+      unit: row.querySelector(".line-unit").value.trim() || "forfait",
       unitPrice,
       total
     };
@@ -739,7 +737,7 @@ function updateAllMobileCardTotals() {
 
 function renderPreview(quote) {
   const company = quote.company;
-  const logo = company.logo ? `<img src="${company.logo}" alt="Logo Will'Paint">` : initials(company.name);
+  const logo = companyLogoHtml(company);
   const rows = quote.lines.map((line) => {
     return `
       <tr>
@@ -765,6 +763,7 @@ function renderPreview(quote) {
         <div class="logo-box">${logo}</div>
         <div>
           <h2>${escapeHtml(company.name)}</h2>
+          <p class="company-subtitle">${escapeHtml(company.subtitle || DEFAULT_COMPANY.subtitle)}</p>
           <p>${nl2br(company.address)}<br>${escapeHtml(company.phone)}<br>${escapeHtml(company.email)}<br>SIRET : ${escapeHtml(company.siret)}</p>
         </div>
       </div>
@@ -1248,7 +1247,7 @@ function buildLibreOfficeHtml(quote) {
 </head>
 <body>
   <h1>${escapeHtml(quote.documentTitle || documentTitle(quote))} ${escapeHtml(quote.quoteNumber)}</h1>
-  <p><strong>${escapeHtml(quote.company.name)}</strong><br>${nl2br(quote.company.address)}<br>${escapeHtml(quote.company.phone)}<br>${escapeHtml(quote.company.email)}<br>SIRET : ${escapeHtml(quote.company.siret)}</p>
+  <p><strong>${escapeHtml(quote.company.name)}</strong><br>${escapeHtml(quote.company.subtitle || DEFAULT_COMPANY.subtitle)}<br>${nl2br(quote.company.address)}<br>${escapeHtml(quote.company.phone)}<br>${escapeHtml(quote.company.email)}<br>SIRET : ${escapeHtml(quote.company.siret)}</p>
   ${quote.documentType === "devis" ? `<p><strong>Date du devis :</strong> ${formatDate(quote.quoteDate)}<br><strong>Validité du devis :</strong> ${formatDate(quote.quoteValidityDate)}</p>` : `<p><strong>Date :</strong> ${formatDate(quote.quoteDate)}</p>`}
   <h2>Client</h2>
   <p><strong>${escapeHtml(quote.clientName)}</strong><br>${nl2br(quote.clientAddress)}<br>${escapeHtml(quote.clientPhone)}<br>${escapeHtml(quote.clientEmail)}</p>
