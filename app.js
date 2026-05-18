@@ -35,7 +35,7 @@ const AVAILABLE_SERVICES = [
   "Déplacement",
   "Main-d’œuvre",
   "Forfait chantier",
-  "Texte libre"
+  "Autre / Ligne libre"
 ];
 
 const quoteFields = [
@@ -66,7 +66,8 @@ const form = document.querySelector("#quoteForm");
 const companyForm = document.querySelector("#companyForm");
 const linesBody = document.querySelector("#linesBody");
 const mobileLinesBody = document.querySelector("#mobileLinesBody");
-const servicePalette = document.querySelector("#servicePalette");
+const serviceSelect = document.querySelector("#serviceSelect");
+const addSelectedServiceBtn = document.querySelector("#addSelectedServiceBtn");
 const lineTemplate = document.querySelector("#lineTemplate");
 const preview = document.querySelector("#quotePreview");
 const mobileStepLabels = ["Client", "Chantier", "Prestations", "Photos", "Résumé / PDF"];
@@ -78,7 +79,7 @@ function init() {
   ensureCompany();
   fillCompanyForm(loadCompany());
   startQuote(loadCurrentQuote());
-  renderServicePalette();
+  renderServiceSelect();
   bindEvents();
   refreshHistory();
   updateMobileStep();
@@ -116,6 +117,7 @@ function bindEvents() {
   document.querySelector("#jsonBtn").addEventListener("click", exportJson);
   document.querySelector("#csvBtn").addEventListener("click", exportCsv);
   document.querySelector("#photoInput").addEventListener("change", handlePhotoInput);
+  addSelectedServiceBtn.addEventListener("click", addSelectedService);
   document.querySelector("#saveCompanyBtn").addEventListener("click", saveCompanySettings);
   document.querySelector("#resetCompanyBtn").addEventListener("click", resetCompanySettings);
   document.querySelector("#companyLogo").addEventListener("change", handleCompanyLogo);
@@ -123,20 +125,27 @@ function bindEvents() {
   document.querySelector("#nextStepBtn").addEventListener("click", nextMobileStep);
 }
 
-function renderServicePalette() {
-  servicePalette.innerHTML = AVAILABLE_SERVICES.map((service) => {
-    return `<button class="service-chip" type="button" data-service="${escapeAttribute(service)}">${escapeHtml(service)}</button>`;
-  }).join("");
+function renderServiceSelect() {
+  serviceSelect.innerHTML = [
+    `<option value="">Choisir une prestation</option>`,
+    ...AVAILABLE_SERVICES.map((service) => {
+      return `<option value="${escapeAttribute(service)}">${escapeHtml(service)}</option>`;
+    })
+  ].join("");
+}
 
-  servicePalette.querySelectorAll(".service-chip").forEach((button) => {
-    button.addEventListener("click", () => {
-      const service = button.dataset.service;
-      const description = service === "Texte libre" ? "" : service;
-      addLine({ kind: "service", description, quantity: 1, unit: "forfait", unitPrice: 0 });
-      calculateAndRender();
-      saveCurrentQuietly();
-    });
-  });
+function addSelectedService() {
+  const service = serviceSelect.value;
+  if (!service) {
+    alert("Choisissez une prestation avant d'ajouter une ligne.");
+    return;
+  }
+
+  const description = service === "Autre / Ligne libre" ? "" : service;
+  addLine({ kind: "service", description, quantity: 1, unit: "forfait", unitPrice: 0 });
+  serviceSelect.value = "";
+  calculateAndRender();
+  saveCurrentQuietly();
 }
 
 function previousMobileStep() {

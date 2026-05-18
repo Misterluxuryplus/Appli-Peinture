@@ -324,27 +324,12 @@ textarea:focus {
   border-radius: 0;
 }
 
-.service-palette {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.service-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
   margin-bottom: 14px;
-}
-
-.service-chip {
-  min-height: 38px;
-  width: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 12px;
-  color: var(--primary);
-  background: #fff;
-  font-size: 0.92rem;
-}
-
-.service-chip:hover {
-  border-color: var(--primary-2);
-  background: #edf4f2;
 }
 
 .mobile-lines {
@@ -1281,13 +1266,14 @@ textarea:focus {
     width: 100%;
   }
 
-  .service-palette {
+  .service-picker {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     width: 100%;
   }
 
-  .service-chip {
+  .service-picker select,
+  .service-picker button {
     width: 100%;
   }
 
