@@ -206,8 +206,14 @@ function previousMobileStep() {
 }
 
 function nextMobileStep() {
+  if (currentMobileStep === mobileStepLabels.length) {
+    showSummaryMessage();
+    calculateAndRender();
+    return;
+  }
   currentMobileStep = Math.min(mobileStepLabels.length, currentMobileStep + 1);
   updateMobileStep();
+  if (currentMobileStep === mobileStepLabels.length) showSummaryMessage();
 }
 
 function updateMobileStep() {
@@ -225,8 +231,30 @@ function updateMobileStep() {
   const previousButton = document.querySelector("#prevStepBtn");
   const nextButton = document.querySelector("#nextStepBtn");
   previousButton.disabled = currentMobileStep === 1;
-  nextButton.textContent = currentMobileStep === mobileStepLabels.length ? "Résumé affiché" : "Suivant";
-  nextButton.disabled = currentMobileStep === mobileStepLabels.length;
+  nextButton.textContent = currentMobileStep >= mobileStepLabels.length - 1 ? "Résumé" : "Suivant";
+  nextButton.disabled = false;
+  if (currentMobileStep !== mobileStepLabels.length) clearSummaryMessage();
+}
+
+function showSummaryMessage() {
+  const message = document.querySelector("#summaryMessage");
+  if (!message) return;
+
+  const quote = collectQuote();
+  const hasLine = quote.lines.length > 0;
+  const hasAmount = quote.lines.some((line) => line.unitPrice > 0 || line.total > 0);
+  let text = "";
+
+  if (!quote.clientName) text = "Nom client manquant";
+  else if (!hasLine) text = "Ajoutez au moins une prestation";
+  else if (!hasAmount) text = "Ajoutez un montant/prix";
+
+  message.textContent = text;
+}
+
+function clearSummaryMessage() {
+  const message = document.querySelector("#summaryMessage");
+  if (message) message.textContent = "";
 }
 
 function disableServiceWorkerCache() {
