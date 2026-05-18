@@ -100,7 +100,7 @@ const quoteFields = [
 const companyFields = ["companyName", "companySubtitle", "companyPhone", "companyEmail", "companyAddress", "companySiret"];
 
 const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-const QUANTITY_ERROR = "Veuillez entrer un nombre entier.";
+const QUANTITY_ERROR = "";
 let currentPhotos = [];
 
 const form = document.querySelector("#quoteForm");
@@ -576,7 +576,7 @@ function renderMobileLineCards() {
       </label>
       <div class="mobile-line-grid">
         <label>Quantité
-          <input class="mobile-quantity" type="text" inputmode="numeric" pattern="[0-9]*" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
+          <input class="mobile-quantity" type="number" inputmode="decimal" min="0" step="any" value="${escapeAttribute(row.querySelector(".line-quantity").value)}">
           <small class="quantity-message" aria-live="polite"></small>
         </label>
         <label>Unité
@@ -619,7 +619,7 @@ function renderMobileLineCards() {
 
 function updateDesktopLineFromMobileCard(row, card) {
   row.querySelector(".line-description").value = card.querySelector(".mobile-description")?.value || "";
-  row.querySelector(".line-quantity").value = normalizeQuantity(card.querySelector(".mobile-quantity")?.value);
+  row.querySelector(".line-quantity").value = card.querySelector(".mobile-quantity")?.value || "";
   row.querySelector(".line-unit").value = card.querySelector(".mobile-unit")?.value || "forfait";
   row.querySelector(".line-price").value = card.querySelector(".mobile-price")?.value || 0;
 }
@@ -638,45 +638,11 @@ function updateMobileCardTotal(row, card) {
 function bindQuantityInput(input) {
   if (!input || input.dataset.quantityBound === "true") return;
   input.dataset.quantityBound = "true";
-
-  input.addEventListener("beforeinput", (event) => {
-    if (event.data && /[.,\D]/.test(event.data)) {
-      event.preventDefault();
-      showQuantityMessage(input);
-    }
-  });
-
-  input.addEventListener("paste", (event) => {
-    const text = event.clipboardData?.getData("text") || "";
-    if (!/^[1-9]\d*$/.test(text.trim())) {
-      event.preventDefault();
-      showQuantityMessage(input);
-    }
-  });
-
-  input.addEventListener("input", () => {
-    const original = input.value;
-    const hasDecimal = /[.,]/.test(original);
-    const integerPart = hasDecimal ? original.split(/[.,]/)[0] : original;
-    const cleaned = integerPart.replace(/\D/g, "");
-    input.value = cleaned;
-
-    if (input.value !== original) showQuantityMessage(input);
-    if (input.value && !/^[1-9]\d*$/.test(input.value)) {
-      input.value = String(normalizeQuantity(input.value));
-      showQuantityMessage(input);
-    }
-  });
-
-  input.addEventListener("blur", () => {
-    input.value = normalizeQuantity(input.value);
-  });
 }
 
 function normalizeQuantity(value) {
-  const text = String(value ?? "").trim();
-  if (!/^[1-9]\d*$/.test(text)) return 1;
-  return Math.max(1, parseInt(text, 10));
+  const quantity = parseFloat(String(value ?? "").trim().replace(",", "."));
+  return Number.isFinite(quantity) ? quantity : 0;
 }
 
 function showQuantityMessage(input) {
@@ -704,7 +670,6 @@ function collectQuote() {
   quote.lines = getLineRows().map((row) => {
     const quantityInput = row.querySelector(".line-quantity");
     const quantity = normalizeQuantity(quantityInput.value);
-    quantityInput.value = quantity;
     const unitPrice = parseFloat(row.querySelector(".line-price").value) || 0;
     const total = quantity * unitPrice;
     row.querySelector(".line-total").textContent = euros.format(total);
